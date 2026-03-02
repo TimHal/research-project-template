@@ -214,3 +214,23 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Project-specific
+logs/
+data/
+mlruns/
+checkpoints/
+*.ckpt
+wandb/
+lightning_logs/
+
+# LLM and Coding Assistants 
+# It is impossible to keep up with all the tools, agents and sloperators that are being released at the 
+# frequency of N tools/week, but here are some of the more popular ones. Please feel free to submit a PR to add more. 
+.assistant/
+.codex/
+.agents/
+.claude/
+CLAUDE.md
+CODEX.md
+AGENTS.md
