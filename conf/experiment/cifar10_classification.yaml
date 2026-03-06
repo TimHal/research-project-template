@@ -1,0 +1,60 @@
+# CIFAR-10 Classification with ResNet18
+# =======================================
+# Example experiment config for the research template.
+#
+# Usage:
+#   conda activate mlresearch
+#   PYTHONPATH=src python src/cli.py fit --config conf/experiment/cifar10_classification.yaml
+#
+# Quick test:
+#   PYTHONPATH=src python src/cli.py fit --config conf/experiment/cifar10_classification.yaml --trainer.fast_dev_run=true
+
+seed_everything: 42
+
+trainer:
+  accelerator: auto
+  devices: 1
+  max_epochs: 50
+  precision: 16-mixed
+  log_every_n_steps: 20
+  logger:
+    class_path: lightning.pytorch.loggers.MLFlowLogger
+    init_args:
+      tracking_uri: "http://localhost:8090"
+      experiment_name: "CIFAR10-Classification"
+      log_model: true
+
+model:
+  class_path: task.ClassificationTask.ClassificationTask
+  init_args:
+    num_classes: 10
+    learning_rate: 1e-3
+    weight_decay: 0.01
+    model:
+      class_path: model.TIMMModel.TIMMModel
+      init_args:
+        model_name: "resnet18"
+        pretrained: true
+        num_classes: 10
+        in_chans: 3
+    scheduler_class: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_params:
+      T_max: 50
+
+data:
+  class_path: data.TorchvisionDatamodule.TorchvisionDatamodule
+  init_args:
+    dataset_name: "CIFAR10"
+    root_dir: "./data"
+    img_size: [224, 224]
+    img_mode: "RGB"
+    batch_size: 64
+    num_workers: 4
+    norm_mean: [0.485, 0.456, 0.406]
+    norm_std: [0.229, 0.224, 0.225]
+    train_val_split: [0.9, 0.1]
+    augmentation: "basic"
+
+# CLI options (can be overridden via command line)
+early_stopping: true
+early_stopping_patience: 10
