@@ -1,0 +1,19 @@
+[project]
+name = "research-project-template"
+version = "0.1.0"
+description = "Minimal PyTorch Lightning template for ML research"
+requires-python = ">=3.10"
+
+# Note: Dependencies are managed via conda environment (mlresearch)
+# This file is for project metadata only
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["cli", "core", "data", "model", "task", "util"]
