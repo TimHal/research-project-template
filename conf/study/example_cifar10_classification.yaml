@@ -1,0 +1,51 @@
+# Optuna study config for CIFAR-10 classification experiment
+#
+# Usage:
+#   conda activate mlresearch
+#   PYTHONPATH=src python src/cli.py study \
+#     --config conf/experiment/cifar10_classification.yaml \
+#     --study_config conf/study/example_cifar10_classification.yaml
+#
+#   # Continue with more trials:
+#   PYTHONPATH=src python src/cli.py study \
+#     --config conf/experiment/cifar10_classification.yaml \
+#     --study_config conf/study/example_cifar10_classification.yaml \
+#     --n_trials 50
+
+study:
+  name: "cifar10_hpo"
+  direction: minimize          # minimize or maximize
+  metric: "val/loss"           # metric from trainer.callback_metrics
+  n_trials: 20
+  storage_dir: "./sweeps"      # Journal file at ./sweeps/<name>.journal; safe for multi-process
+  sampler: TPESampler          # TPESampler, RandomSampler, CmaEsSampler, NSGAIISampler
+  pruner:
+    type: MedianPruner
+    n_startup_trials: 5        # complete this many trials before pruning
+    n_warmup_steps: 5          # epochs before pruning within a trial
+  # Optional early stopping per trial
+  early_stopping:
+    patience: 5
+
+# Fixed overrides applied to every trial (e.g. fewer epochs during search)
+overrides:
+  trainer.max_epochs: 10
+
+# Search space: each key is a dot-path into the base experiment config
+# Supported types: float (log optional), int (log optional), categorical
+search_space:
+  model.init_args.learning_rate:
+    type: float
+    low: 1e-5
+    high: 1e-2
+    log: true
+
+  model.init_args.weight_decay:
+    type: float
+    low: 1e-6
+    high: 1e-2
+    log: true
+
+  data.init_args.batch_size:
+    type: categorical
+    choices: [32, 64, 128]
