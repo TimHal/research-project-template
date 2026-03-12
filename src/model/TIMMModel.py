@@ -82,47 +82,46 @@ class TIMMModel(nn.Module):
         return self.model(x)
 
     def get_features(self, x: torch.Tensor, layer: Optional[str] = None) -> torch.Tensor:
-        """Extract features from a specific layer.
+        """Extract features from the model.
 
         Args:
             x: Input tensor [N, C, H, W]
-            layer: Optional layer name to extract features from.
-                   If None, returns features from the penultimate layer.
+            layer: Layer name to extract from (use model.named_modules() to
+                list available names). If None, returns features from the
+                penultimate layer (before the classifier head).
 
         Returns:
-            Feature tensor
+            Feature tensor. Shape depends on architecture and layer.
+
+        Raises:
+            ValueError: If the specified layer is not found.
         """
         if layer is not None:
-            # Extract from specific layer using hooks
             features = {}
 
-            def hook_fn(name):
-                def hook(module, input, output):
-                    features[name] = output
+            def hook_fn(module, input, output):
+                features["out"] = output
 
-                return hook
-
-            # Register hook
             handle = None
             for name, module in self.model.named_modules():
                 if name == layer:
-                    handle = module.register_forward_hook(hook_fn(name))
+                    handle = module.register_forward_hook(hook_fn)
                     break
 
-            # Forward pass
-            _ = self.model(x)
+            if handle is None:
+                raise ValueError(
+                    f"Layer '{layer}' not found. "
+                    f"Available: {[n for n, _ in self.model.named_modules() if n]}"
+                )
 
-            # Remove hook
-            if handle:
-                handle.remove()
-
-            return features.get(layer, None)
+            self.model(x)
+            handle.remove()
+            return features["out"]
         else:
             # Return final features before classifier
             if self.features_only:
-                return self.model(x)[-1]  # Return last feature map
+                return self.model(x)[-1]
+            elif hasattr(self.model, "forward_features"):
+                return self.model.forward_features(x)
             else:
-                if hasattr(self.model, "forward_features"):
-                    return self.model.forward_features(x)
-                else:
-                    return self.model(x)
+                return self.model(x)
