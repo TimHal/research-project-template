@@ -1,4 +1,4 @@
-"""Callback to save experiment configuration to MLFlow artifacts."""
+"""Callback to save experiment configuration as a logger artifact."""
 
 import tempfile
 from pathlib import Path
@@ -8,10 +8,10 @@ from lightning.pytorch.cli import SaveConfigCallback
 
 
 class SaveMLFlowConfigCallback(SaveConfigCallback):
-    """Save experiment config.yaml as an MLFlow artifact.
+    """Save experiment config.yaml as a logger artifact.
 
     This callback automatically saves the full experiment configuration
-    to MLFlow artifacts, making it easy to reproduce experiments.
+    as an artifact (MLFlow or W&B), making it easy to reproduce experiments.
     """
 
     def __init__(
@@ -29,24 +29,32 @@ class SaveMLFlowConfigCallback(SaveConfigCallback):
     def save_config(
         self, trainer: L.Trainer, pl_module: L.LightningModule, stage: str
     ) -> None:
-        """Save config to MLFlow artifacts."""
-        if trainer.is_global_zero:
-            # Check if logger has MLFlow-compatible interface
-            if not hasattr(trainer.logger, "experiment") or not hasattr(
-                trainer.logger.experiment, "log_artifact"
-            ):
-                # Fall back to default behavior for non-MLFlow loggers
-                return
+        """Save config as a logger artifact (MLFlow or W&B)."""
+        if not trainer.is_global_zero:
+            return
 
-            with tempfile.TemporaryDirectory() as tmp_dir:
-                config_path = Path(tmp_dir) / "config.yaml"
-                self.parser.save(
-                    self.config,
-                    config_path,
-                    skip_none=False,
-                    overwrite=self.overwrite,
-                    multifile=self.multifile,
-                )
+        if not hasattr(trainer.logger, "experiment"):
+            return
+
+        logger_name = type(trainer.logger).__name__
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            config_path = Path(tmp_dir) / "config.yaml"
+            self.parser.save(
+                self.config,
+                config_path,
+                skip_none=False,
+                overwrite=self.overwrite,
+                multifile=self.multifile,
+            )
+
+            if "MLFlow" in logger_name and hasattr(trainer.logger, "run_id"):
                 trainer.logger.experiment.log_artifact(
                     local_path=config_path, run_id=trainer.logger.run_id
                 )
+            elif "Wandb" in logger_name:
+                import wandb
+
+                artifact = wandb.Artifact("config", type="config")
+                artifact.add_file(str(config_path))
+                trainer.logger.experiment.log_artifact(artifact)

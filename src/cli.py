@@ -2,7 +2,7 @@
 
 This CLI provides a flexible interface for running experiments with:
 - Automatic run ID generation with timestamps
-- MLFlow experiment tracking
+- Experiment tracking (MLFlow or Weights & Biases)
 - Configuration-driven experiments (YAML + OmegaConf)
 - Learning rate monitoring and early stopping
 - Automatic stdout/stderr capture and logging
@@ -25,6 +25,7 @@ Usage:
         --run_id my_custom_run
 """
 
+import sys
 from datetime import datetime
 from typing import Optional
 
@@ -35,23 +36,41 @@ from core.callbacks.SaveConfigCallback import SaveMLFlowConfigCallback
 
 # Constants
 RUN_ID_TIMESTAMP_FORMAT = "%Y-%m-%d_%H_%M"
+CUSTOM_COMMANDS = frozenset(["study"])
 
 
 class ResearchCLI(LightningCLI):
-    """Enhanced Lightning CLI with MLFlow support and sensible defaults.
+    """Enhanced Lightning CLI with experiment tracking and sensible defaults.
 
     Features:
     - OmegaConf parser for flexible YAML configuration
     - Automatic run_id generation with timestamp
-    - MLFlow logger auto-configuration
+    - MLFlow and Weights & Biases logger auto-configuration
     - Learning rate monitoring
     - Optional early stopping
+    - Optuna hyperparameter study via `study` subcommand
     """
 
     def __init__(self, *args, **kwargs):
         """Initialize the CLI with enhanced defaults."""
+        self._check_custom_commands()
         self._set_default_kwargs(kwargs)
         super().__init__(*args, **kwargs)
+
+    def _check_custom_commands(self) -> None:
+        """Check for and handle custom commands before LightningCLI parsing."""
+        if len(sys.argv) > 1 and sys.argv[1] in CUSTOM_COMMANDS:
+            if sys.argv[1] == "study":
+                self._run_study()
+
+    @staticmethod
+    def _run_study() -> None:
+        """Run an Optuna hyperparameter study and exit."""
+        from study import parse_study_args, run_study
+
+        base_path, study_path, n_trials = parse_study_args()
+        run_study(base_path, study_path, n_trials_override=n_trials)
+        sys.exit(0)
 
     def _set_default_kwargs(self, kwargs: dict) -> None:
         """Set default keyword arguments if not provided."""
@@ -86,6 +105,12 @@ class ResearchCLI(LightningCLI):
             default="val/loss",
             help="Metric to monitor for early stopping",
         )
+        parser.add_argument(
+            "--early_stopping_mode",
+            type=str,
+            default="min",
+            help="Mode for early stopping: 'min' (lower is better) or 'max' (higher is better)",
+        )
 
     def _add_experiment_arguments(self, parser) -> None:
         """Add experiment management CLI arguments."""
@@ -93,7 +118,7 @@ class ResearchCLI(LightningCLI):
             "--experiment_name",
             type=Optional[str],
             default=None,
-            help="MLFlow experiment name (overrides config)",
+            help="Experiment/project name (overrides config). Maps to MLFlow experiment_name or W&B project.",
         )
         parser.add_argument(
             "--run_id",
@@ -108,13 +133,13 @@ class ResearchCLI(LightningCLI):
             "--log_output",
             type=bool,
             default=True,
-            help="Capture stdout/stderr and log as MLFlow artifact (default: True)",
+            help="Capture stdout/stderr and log as artifact (default: True)",
         )
         parser.add_argument(
             "--log_datasets",
             type=bool,
             default=True,
-            help="Register datasets with MLflow dataset tracking (default: True)",
+            help="Register datasets with MLflow dataset tracking (MLflow only, default: True)",
         )
 
     def before_instantiate_classes(self) -> None:
@@ -126,8 +151,8 @@ class ResearchCLI(LightningCLI):
         experiment_name = self._resolve_experiment_name(config)
         run_id = self._resolve_run_id(experiment_name)
 
-        # Configure MLFlow logger
-        self._configure_mlflow_logger(config, run_id)
+        # Configure logger (MLFlow or W&B)
+        self._configure_logger(config, run_id)
 
         # Add standard callbacks
         self._add_lr_monitor_callback(callbacks, config)
@@ -151,15 +176,17 @@ class ResearchCLI(LightningCLI):
         """Resolve experiment name from CLI args or config.
 
         Priority: CLI argument > logger config > default
+        Checks MLFlow's ``experiment_name`` and W&B's ``project`` fields.
         """
         # CLI argument takes precedence
         if self.config.get("experiment_name"):
             return self.config["experiment_name"]
 
-        # Extract from MLFlow logger config
+        # Extract from logger config (experiment_name for MLFlow, project for W&B)
         logger_config = config["trainer"].get("logger")
         if isinstance(logger_config, dict):
-            experiment_name = logger_config.get("init_args", {}).get("experiment_name")
+            init_args = logger_config.get("init_args", {})
+            experiment_name = init_args.get("experiment_name") or init_args.get("project")
             if experiment_name:
                 return experiment_name
 
@@ -173,17 +200,22 @@ class ResearchCLI(LightningCLI):
         timestamp = datetime.now().strftime(RUN_ID_TIMESTAMP_FORMAT)
         return f"{experiment_name}_{timestamp}"
 
-    def _configure_mlflow_logger(self, config: dict, run_id: str) -> None:
-        """Configure MLFlow logger with run_name if present."""
+    def _configure_logger(self, config: dict, run_id: str) -> None:
+        """Configure logger with run name/ID.
+
+        Sets ``run_name`` for MLFlow or ``name`` for W&B.
+        """
         logger_config = config["trainer"].get("logger")
         if not isinstance(logger_config, dict):
             return
 
-        if "MLFlowLogger" not in str(logger_config.get("class_path", "")):
-            return
-
+        class_path = str(logger_config.get("class_path", ""))
         logger_config.setdefault("init_args", {})
-        logger_config["init_args"]["run_name"] = run_id
+
+        if "MLFlowLogger" in class_path:
+            logger_config["init_args"]["run_name"] = run_id
+        elif "WandbLogger" in class_path:
+            logger_config["init_args"]["name"] = run_id
 
     def _add_lr_monitor_callback(self, callbacks: list, config: dict) -> None:
         """Add LearningRateMonitor callback if logger is enabled."""
@@ -250,6 +282,7 @@ class ResearchCLI(LightningCLI):
 
         monitor = self.config.get("early_stopping_monitor", "val/loss")
         patience = self.config.get("early_stopping_patience", 10)
+        mode = self.config.get("early_stopping_mode", "min")
 
         callbacks.append(
             {
@@ -257,7 +290,7 @@ class ResearchCLI(LightningCLI):
                 "init_args": {
                     "monitor": monitor,
                     "patience": patience,
-                    "mode": "min",
+                    "mode": mode,
                     "verbose": True,
                 },
             }

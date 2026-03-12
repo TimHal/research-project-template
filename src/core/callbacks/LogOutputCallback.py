@@ -1,4 +1,4 @@
-"""Callback to capture stdout/stderr and log as MLFlow artifact."""
+"""Callback to capture stdout/stderr and log as a logger artifact."""
 
 import sys
 import tempfile
@@ -33,10 +33,10 @@ class TeeStream:
 
 
 class LogOutputCallback(L.Callback):
-    """Capture stdout/stderr during training and log as MLFlow artifact.
+    """Capture stdout/stderr during training and log as a logger artifact.
 
     This callback captures all terminal output while still displaying it,
-    then saves it as an artifact for reproducibility.
+    then saves it as an artifact (MLFlow or W&B) for reproducibility.
 
     Args:
         artifact_name: Name of the output log file (default: "output.log")
@@ -166,21 +166,27 @@ class LogOutputCallback(L.Callback):
                 output_lines.append("")
                 output_lines.append(stderr_content)
 
-        # Log to MLFlow if logger is available
-        if (
-            trainer.logger is not None
-            and hasattr(trainer.logger, "experiment")
-            and hasattr(trainer.logger.experiment, "log_artifact")
-        ):
+        # Log as artifact if logger supports it
+        if trainer.logger is not None and hasattr(trainer.logger, "experiment"):
+            logger_name = type(trainer.logger).__name__
+
             with tempfile.TemporaryDirectory() as tmp_dir:
                 log_path = Path(tmp_dir) / self.artifact_name
                 log_path.write_text("\n".join(output_lines))
 
-                trainer.logger.experiment.log_artifact(
-                    local_path=str(log_path),
-                    run_id=trainer.logger.run_id,
-                )
-                print(f"\nOutput log saved to MLFlow artifact: {self.artifact_name}")
+                if "MLFlow" in logger_name and hasattr(trainer.logger, "run_id"):
+                    trainer.logger.experiment.log_artifact(
+                        local_path=str(log_path),
+                        run_id=trainer.logger.run_id,
+                    )
+                    print(f"\nOutput log saved to artifact: {self.artifact_name}")
+                elif "Wandb" in logger_name:
+                    import wandb
+
+                    artifact = wandb.Artifact("output_log", type="log")
+                    artifact.add_file(str(log_path))
+                    trainer.logger.experiment.log_artifact(artifact)
+                    print(f"\nOutput log saved to artifact: {self.artifact_name}")
 
         # Clear buffers
         self._stdout_buffer = None
