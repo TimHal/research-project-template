@@ -217,7 +217,7 @@ __marimo__/
 
 # Project-specific
 logs/
-data/
+/data/
 mlruns/
 checkpoints/
 *.ckpt
