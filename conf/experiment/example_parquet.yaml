@@ -1,0 +1,85 @@
+# Parquet Dataset Classification
+# ================================
+# Example configs for both tabular and image_path modes.
+#
+# Requires: pip install pyarrow
+#
+# TABULAR MODE — numeric features from parquet columns:
+#   Expected parquet columns: feature1, feature2, ..., label
+#
+# IMAGE PATH MODE — image file paths from a parquet column:
+#   Expected parquet columns: file_path, label
+#   Images stored alongside or relative to image_base_dir
+#
+# Usage:
+#   conda activate mlresearch
+#   PYTHONPATH=src python src/cli.py fit --config conf/experiment/example_parquet.yaml
+
+seed_everything: 42
+
+trainer:
+  accelerator: auto
+  devices: 1
+  max_epochs: 30
+  precision: 16-mixed
+  log_every_n_steps: 10
+  logger:
+    class_path: lightning.pytorch.loggers.MLFlowLogger
+    init_args:
+      tracking_uri: "http://localhost:8090"
+      experiment_name: "Parquet-Classification"
+      log_model: true
+
+model:
+  class_path: task.ClassificationTask.ClassificationTask
+  init_args:
+    num_classes: 10
+    learning_rate: 1e-3
+    weight_decay: 0.01
+    model:
+      # For tabular mode, use a simple MLP via TorchModel:
+      #   class_path: model.TorchModel.TorchModel
+      #   init_args:
+      #     class_path: "torch.nn.Sequential"
+      #     ...
+      # For image_path mode, use a CNN:
+      class_path: model.TIMMModel.TIMMModel
+      init_args:
+        model_name: "resnet18"
+        pretrained: true
+        num_classes: 10
+        in_chans: 3
+    scheduler_class: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_params:
+      T_max: 30
+
+# --- Image path mode ---
+data:
+  class_path: data.ParquetDatamodule.ParquetDatamodule
+  init_args:
+    train_file: "./data/my_images/train.parquet"
+    test_file: "./data/my_images/test.parquet"
+    label_column: "label"
+    mode: "image_path"
+    image_column: "file_path"
+    image_base_dir: "./data/my_images/"
+    img_size: [224, 224]
+    batch_size: 32
+    num_workers: 4
+    norm_mean: [0.485, 0.456, 0.406]
+    norm_std: [0.229, 0.224, 0.225]
+    augmentation: "basic"
+
+# --- Tabular mode (uncomment to use) ---
+# data:
+#   class_path: data.ParquetDatamodule.ParquetDatamodule
+#   init_args:
+#     train_file: "./data/tabular/train.parquet"
+#     test_file: "./data/tabular/test.parquet"
+#     label_column: "target"
+#     mode: "tabular"
+#     batch_size: 128
+#     num_workers: 4
+
+early_stopping: true
+early_stopping_patience: 5

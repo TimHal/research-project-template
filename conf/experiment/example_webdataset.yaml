@@ -1,0 +1,71 @@
+# WebDataset Streaming Classification
+# =====================================
+# Example: streaming image classification from tar archives.
+#
+# Requires: pip install webdataset
+#
+# Tar format (each sample = basename.jpg + basename.cls):
+#   train-0000.tar:
+#     sample000.jpg    # image file
+#     sample000.cls    # class label (integer as text)
+#     sample001.jpg
+#     sample001.cls
+#     ...
+#
+# Usage:
+#   conda activate mlresearch
+#   PYTHONPATH=src python src/cli.py fit --config conf/experiment/example_webdataset.yaml
+
+seed_everything: 42
+
+trainer:
+  accelerator: auto
+  devices: 1
+  max_epochs: 30
+  precision: 16-mixed
+  log_every_n_steps: 50
+  logger:
+    class_path: lightning.pytorch.loggers.MLFlowLogger
+    init_args:
+      tracking_uri: "http://localhost:8090"
+      experiment_name: "WebDataset-Classification"
+      log_model: true
+
+model:
+  class_path: task.ClassificationTask.ClassificationTask
+  init_args:
+    num_classes: 1000
+    learning_rate: 1e-3
+    weight_decay: 0.01
+    model:
+      class_path: model.TIMMModel.TIMMModel
+      init_args:
+        model_name: "resnet18"
+        pretrained: true
+        num_classes: 1000
+        in_chans: 3
+    scheduler_class: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_params:
+      T_max: 30
+
+data:
+  class_path: data.WebDatasetDatamodule.WebDatasetDatamodule
+  init_args:
+    train_urls: "./data/wds/train-{0000..0099}.tar"
+    val_urls: "./data/wds/val-{0000..0009}.tar"
+    test_urls: "./data/wds/test-{0000..0009}.tar"
+    num_classes: 1000
+    num_train_samples: 1281167
+    num_val_samples: 50000
+    num_test_samples: 50000
+    image_key: "jpg"
+    label_key: "cls"
+    img_size: [224, 224]
+    batch_size: 64
+    num_workers: 8
+    norm_mean: [0.485, 0.456, 0.406]
+    norm_std: [0.229, 0.224, 0.225]
+    augmentation: "basic"
+
+early_stopping: true
+early_stopping_patience: 5

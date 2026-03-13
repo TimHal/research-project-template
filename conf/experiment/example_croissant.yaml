@@ -1,0 +1,64 @@
+# Croissant Dataset Classification
+# ===================================
+# Example: loading a dataset described by Croissant JSON-LD metadata.
+#
+# Requires: pip install mlcroissant
+#
+# Croissant is a standardized dataset metadata format adopted by
+# HuggingFace, Kaggle, OpenML, and others.
+#
+# Spec: https://github.com/mlcommons/croissant
+#
+# Usage:
+#   conda activate mlresearch
+#   PYTHONPATH=src python src/cli.py fit --config conf/experiment/example_croissant.yaml
+
+seed_everything: 42
+
+trainer:
+  accelerator: auto
+  devices: 1
+  max_epochs: 20
+  precision: 16-mixed
+  log_every_n_steps: 10
+  logger:
+    class_path: lightning.pytorch.loggers.MLFlowLogger
+    init_args:
+      tracking_uri: "http://localhost:8090"
+      experiment_name: "Croissant-Classification"
+      log_model: true
+
+model:
+  class_path: task.ClassificationTask.ClassificationTask
+  init_args:
+    num_classes: 10         # adjust to your dataset
+    learning_rate: 1e-3
+    weight_decay: 0.01
+    model:
+      class_path: model.TIMMModel.TIMMModel
+      init_args:
+        model_name: "resnet18"
+        pretrained: true
+        num_classes: 10     # adjust to your dataset
+        in_chans: 3
+    scheduler_class: torch.optim.lr_scheduler.CosineAnnealingLR
+    scheduler_params:
+      T_max: 20
+
+data:
+  class_path: data.CroissantDatamodule.CroissantDatamodule
+  init_args:
+    metadata_path: "./data/my_dataset/croissant.json"
+    record_set: "images"
+    img_size: [224, 224]
+    img_mode: "RGB"
+    batch_size: 32
+    num_workers: 4
+    norm_mean: [0.485, 0.456, 0.406]
+    norm_std: [0.229, 0.224, 0.225]
+    train_val_split: [0.9, 0.1]
+    test_ratio: 0.1
+    augmentation: "basic"
+
+early_stopping: true
+early_stopping_patience: 5
