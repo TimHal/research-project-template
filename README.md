@@ -30,7 +30,7 @@ src/
 ├── cli.py              # CLI entry point (extends LightningCLI)
 ├── study.py            # Optuna hyperparameter study runner
 ├── core/callbacks/     # Custom callbacks (SaveConfig, LogOutput, LogDataset)
-├── data/               # DataModules (TorchvisionDatamodule)
+├── data/               # DataModules (Torchvision, HuggingFace, ImageFolder, WebDataset, Parquet, Croissant, Kaggle)
 ├── model/              # Model wrappers (TIMM, torchvision, HuggingFace, generic)
 ├── task/               # LightningModules (ClassificationTask)
 └── util/               # Utilities (viz, model_loading, mlflow)
@@ -210,6 +210,147 @@ model:
 
 > **Remember:** Model wrappers go inside the task's `model` argument. See the full config example above.
 
+## Available DataModules
+
+The template provides seven DataModules under `src/data/` for loading data from common sources. All are configured via the `data:` section in experiment YAML configs.
+
+### TorchvisionDatamodule — built-in datasets
+
+Standard torchvision datasets (CIFAR10/100, MNIST, FashionMNIST, KMNIST, EMNIST, STL10, SVHN). No extra dependencies.
+
+```yaml
+data:
+  class_path: data.TorchvisionDatamodule.TorchvisionDatamodule
+  init_args:
+    dataset_name: "CIFAR10"
+    batch_size: 64
+    img_size: [224, 224]
+    augmentation: "basic"
+```
+
+### ImageFolderDatamodule — local image directories
+
+Load images organized as `root/class_name/image.jpg`. Auto-detects `train/`/`val/`/`test/` subdirectories, or auto-splits a single directory. No extra dependencies.
+
+```yaml
+data:
+  class_path: data.ImageFolderDatamodule.ImageFolderDatamodule
+  init_args:
+    root_dir: "./data/my_dataset"     # contains train/, val/, test/ or class folders directly
+    img_size: [224, 224]
+    batch_size: 32
+    augmentation: "basic"
+```
+
+### HuggingFaceDatamodule — [HuggingFace Hub](https://huggingface.co/datasets)
+
+Any image classification dataset from the HuggingFace Hub. Auto-detects image and label columns. Requires `pip install datasets`.
+
+```yaml
+data:
+  class_path: data.HuggingFaceDatamodule.HuggingFaceDatamodule
+  init_args:
+    dataset_name: "beans"             # or "cifar10", "imagenet-1k", any HF dataset
+    img_size: [224, 224]
+    batch_size: 32
+    augmentation: "basic"
+```
+
+### ParquetDatamodule — Parquet files
+
+Load data from Parquet files in two modes. Requires `pip install pyarrow`.
+
+**Tabular mode** — numeric feature columns + label:
+
+```yaml
+data:
+  class_path: data.ParquetDatamodule.ParquetDatamodule
+  init_args:
+    train_file: "./data/tabular/train.parquet"
+    test_file: "./data/tabular/test.parquet"
+    label_column: "target"
+    mode: "tabular"
+    batch_size: 128
+```
+
+**Image path mode** — image file paths stored in a column:
+
+```yaml
+data:
+  class_path: data.ParquetDatamodule.ParquetDatamodule
+  init_args:
+    train_file: "./data/images/metadata.parquet"
+    label_column: "label"
+    mode: "image_path"
+    image_column: "file_path"
+    image_base_dir: "./data/images/"
+    img_size: [224, 224]
+    batch_size: 32
+```
+
+### WebDatasetDatamodule — [WebDataset](https://webdataset.github.io/webdataset/) tar archives
+
+Stream large-scale datasets from sharded tar files without loading everything into memory. Requires `pip install webdataset`.
+
+```yaml
+data:
+  class_path: data.WebDatasetDatamodule.WebDatasetDatamodule
+  init_args:
+    train_urls: "./data/wds/train-{0000..0099}.tar"
+    val_urls: "./data/wds/val-{0000..0009}.tar"
+    num_classes: 1000
+    num_train_samples: 1281167        # required for epoch length
+    num_val_samples: 50000
+    img_size: [224, 224]
+    batch_size: 64
+    num_workers: 8
+```
+
+### CroissantDatamodule — [Croissant](https://github.com/mlcommons/croissant) metadata
+
+Load datasets described by Croissant JSON-LD metadata files — the standard format adopted by HuggingFace, Kaggle, and OpenML. Requires `pip install mlcroissant`.
+
+```yaml
+data:
+  class_path: data.CroissantDatamodule.CroissantDatamodule
+  init_args:
+    metadata_path: "./data/my_dataset/croissant.json"
+    record_set: "images"              # which record set to load
+    img_size: [224, 224]
+    batch_size: 32
+    test_ratio: 0.1                   # hold out 10% for testing
+```
+
+### KaggleDatamodule — [Kaggle](https://www.kaggle.com/) datasets & competitions
+
+Download and load datasets from Kaggle. Supports ImageFolder and CSV loading formats. Requires `pip install kaggle` and a [Kaggle API token](https://github.com/Kaggle/kaggle-api#api-credentials) at `~/.kaggle/kaggle.json`.
+
+```yaml
+# ImageFolder mode (most image datasets)
+data:
+  class_path: data.KaggleDatamodule.KaggleDatamodule
+  init_args:
+    dataset_slug: "moltean/fruits"
+    root_dir: "./data/kaggle_fruits"
+    load_format: "imagefolder"
+    img_size: [224, 224]
+    batch_size: 32
+
+# CSV mode (competitions like digit-recognizer)
+data:
+  class_path: data.KaggleDatamodule.KaggleDatamodule
+  init_args:
+    competition: "digit-recognizer"
+    root_dir: "./data/kaggle_digits"
+    load_format: "csv"
+    csv_file: "train.csv"
+    label_column: "label"
+    image_shape: [1, 28, 28]
+    num_classes: 10
+```
+
+> See `conf/experiment/example_*.yaml` for complete working configs for each DataModule.
+
 ## Loading Models in Notebooks
 
 ```python
@@ -376,6 +517,11 @@ Assumes `mlresearch` conda environment with:
 - [optuna](https://optuna.readthedocs.io/)
 - numpy, matplotlib
 - [transformers](https://huggingface.co/docs/transformers/) (optional, for HuggingFaceModel)
+- [datasets](https://huggingface.co/docs/datasets/) (optional, for HuggingFaceDatamodule)
+- [webdataset](https://webdataset.github.io/webdataset/) (optional, for WebDatasetDatamodule)
+- [mlcroissant](https://github.com/mlcommons/croissant) (optional, for CroissantDatamodule)
+- [kaggle](https://github.com/Kaggle/kaggle-api) (optional, for KaggleDatamodule)
+- [pyarrow](https://arrow.apache.org/docs/python/) (optional, for ParquetDatamodule)
 - [wandb](https://docs.wandb.ai/) (optional, for W&B tracking)
 
 ## Further Reading
