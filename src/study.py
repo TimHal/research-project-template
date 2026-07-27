@@ -31,7 +31,7 @@ from lightning.pytorch.callbacks import EarlyStopping
 from omegaconf import OmegaConf
 from optuna.integration import PyTorchLightningPruningCallback
 
-from util.instantiate import instantiate
+from util.instantiate import instantiate, resolve_init_args
 
 
 def _deep_set(d: dict, dotpath: str, value) -> None:
@@ -336,13 +336,16 @@ def run_study(base_config_path: str, study_config_path: str, n_trials_override: 
         model = instantiate(cfg["model"]["class_path"], cfg["model"].get("init_args", {}))
         datamodule = instantiate(cfg["data"]["class_path"], cfg["data"].get("init_args", {}))
 
-        # Build trainer kwargs from safe subset of config
+        # Build the Trainer from the *full* trainer config so HPO trials train
+        # under the same conditions as `fit` (accumulate_grad_batches,
+        # num_sanity_val_steps, gradient_clip_val, strategy, precision, ...).
+        # Only logger, callbacks, and checkpointing are managed by the study:
+        # each trial gets a pruning callback and its own run, and checkpointing
+        # is disabled to avoid writing artifacts for every trial.
         trainer_cfg = cfg.get("trainer", {})
-        safe_keys = [
-            "max_epochs", "accelerator", "devices", "precision",
-            "log_every_n_steps", "check_val_every_n_epoch", "gradient_clip_val",
-        ]
-        trainer_kwargs = {k: trainer_cfg[k] for k in safe_keys if k in trainer_cfg}
+        trainer_kwargs = resolve_init_args(
+            {k: v for k, v in trainer_cfg.items() if k not in ("logger", "callbacks")}
+        )
         trainer_kwargs["callbacks"] = _build_callbacks(study_cfg, trial, metrics, directions)
         trainer_kwargs["enable_checkpointing"] = False
         trainer_kwargs["logger"] = _build_trial_logger(trainer_cfg, study_name, trial.number)
