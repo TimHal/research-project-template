@@ -142,7 +142,10 @@ module-level functions (not lambdas) so transforms stay picklable and work with
 ## Style
 
 - `ruff check src/ tests/` must pass (config in `pyproject.toml`; line length 88,
-  E/F/I/W rules). Run `ruff check --fix` to auto-sort imports.
+  E/F/I/W/D rules). Run `ruff check --fix` to auto-sort imports.
+- Docstrings are linted (pydocstyle, google convention). Two deliberate
+  exemptions: `D107` (constructor args live on the class docstring) and `D103`
+  in `tests/` (test names describe the case).
 - Metric names are always `split/metric` so loggers and early-stopping monitors
   line up (`--early_stopping_monitor=val/acc`).
 - Docstrings: module docstring stating purpose; Google-style `Args:` on public
