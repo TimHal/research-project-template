@@ -18,7 +18,6 @@ Usage:
 import argparse
 import copy
 import gc
-import importlib
 import os
 import sys
 import tempfile
@@ -31,6 +30,8 @@ from lightning.pytorch import Trainer, seed_everything
 from lightning.pytorch.callbacks import EarlyStopping
 from omegaconf import OmegaConf
 from optuna.integration import PyTorchLightningPruningCallback
+
+from util.instantiate import instantiate
 
 
 def _deep_set(d: dict, dotpath: str, value) -> None:
@@ -60,48 +61,6 @@ def _suggest_param(trial: optuna.Trial, name: str, spec: dict):
         return choices[idx]
     else:
         raise ValueError(f"Unknown search space type: {ptype}")
-
-
-def _import_class(class_path: str):
-    """Import a class from a dotted class_path string."""
-    module_name, cls_name = class_path.rsplit(".", 1)
-    module = importlib.import_module(module_name)
-    return getattr(module, cls_name)
-
-
-def _resolve_init_args(init_args: dict) -> dict:
-    """Resolve init_args, handling nested class_path/init_args and bare class references.
-
-    Handles three patterns from Lightning CLI configs:
-    1. Nested objects: {class_path: "...", init_args: {...}} -> instantiated object
-    2. Bare class references: "torch.optim.AdamW" for type[...] params -> imported class
-    3. Plain values: passed through unchanged
-    """
-    resolved = {}
-    for key, value in init_args.items():
-        if isinstance(value, dict) and "class_path" in value:
-            nested_args = value.get("init_args", {})
-            resolved[key] = _instantiate_class(value["class_path"], nested_args)
-        elif isinstance(value, str) and "." in value and not value.startswith("/"):
-            # Try importing as a class reference (e.g. scheduler_class, optimizer_class)
-            try:
-                resolved[key] = _import_class(value)
-            except (ImportError, AttributeError, ValueError):
-                resolved[key] = value
-        else:
-            resolved[key] = value
-    return resolved
-
-
-def _instantiate_class(class_path: str, init_args: dict):
-    """Instantiate a class from a class_path string and init_args dict.
-
-    Recursively resolves nested class_path/init_args dicts and bare class
-    references, which are standard patterns in Lightning CLI configs.
-    """
-    resolved_args = _resolve_init_args(init_args)
-    cls = _import_class(class_path)
-    return cls(**resolved_args)
 
 
 def _resolve_objectives(study_settings: dict) -> tuple[list[str], list[str]]:
@@ -383,8 +342,8 @@ def run_study(base_config_path: str, study_config_path: str, n_trials_override: 
         seed = cfg.get("seed_everything", 42)
         seed_everything(seed, workers=True)
 
-        model = _instantiate_class(cfg["model"]["class_path"], cfg["model"].get("init_args", {}))
-        datamodule = _instantiate_class(cfg["data"]["class_path"], cfg["data"].get("init_args", {}))
+        model = instantiate(cfg["model"]["class_path"], cfg["model"].get("init_args", {}))
+        datamodule = instantiate(cfg["data"]["class_path"], cfg["data"].get("init_args", {}))
 
         # Build trainer kwargs from safe subset of config
         trainer_cfg = cfg.get("trainer", {})
