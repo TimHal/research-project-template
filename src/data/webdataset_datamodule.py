@@ -25,12 +25,12 @@ def _import_webdataset():
         return wds
     except ImportError:
         raise ImportError(
-            "WebDatasetDatamodule requires the 'webdataset' package. "
+            "WebDatasetDataModule requires the 'webdataset' package. "
             "Install it with: pip install webdataset"
         ) from None
 
 
-class WebDatasetDatamodule(L.LightningDataModule):
+class WebDatasetDataModule(L.LightningDataModule):
     """DataModule for streaming datasets from tar archives via WebDataset.
 
     Designed for large-scale datasets stored as sharded tar files. Samples

@@ -1,7 +1,11 @@
-"""Custom callbacks for PyTorch Lightning training."""
+"""Custom PyTorch Lightning callbacks.
 
-from core.callbacks.LogDatasetCallback import LogDatasetCallback
-from core.callbacks.LogOutputCallback import LogOutputCallback
-from core.callbacks.SaveConfigCallback import SaveMLFlowConfigCallback
+Re-exported so configs can reference the short path
+``core.callbacks.<ClassName>`` (e.g. ``core.callbacks.LogOutputCallback``).
+"""
 
-__all__ = ["SaveMLFlowConfigCallback", "LogOutputCallback", "LogDatasetCallback"]
+from core.callbacks.log_dataset_callback import LogDatasetCallback
+from core.callbacks.log_output_callback import LogOutputCallback
+from core.callbacks.save_config_callback import SaveConfigArtifactCallback
+
+__all__ = ["LogDatasetCallback", "LogOutputCallback", "SaveConfigArtifactCallback"]

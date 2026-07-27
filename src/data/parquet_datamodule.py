@@ -27,7 +27,7 @@ def _import_pandas():
         return pd
     except ImportError:
         raise ImportError(
-            "ParquetDatamodule requires the 'pandas' and 'pyarrow' packages. "
+            "ParquetDataModule requires the 'pandas' and 'pyarrow' packages. "
             "Install them with: pip install pandas pyarrow"
         ) from None
 
@@ -62,7 +62,7 @@ class _ImagePathDataset(Dataset):
         return image, self.labels[idx]
 
 
-class ParquetDatamodule(L.LightningDataModule):
+class ParquetDataModule(L.LightningDataModule):
     """DataModule for datasets stored in Parquet files.
 
     Supports two modes:

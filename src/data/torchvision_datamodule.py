@@ -25,7 +25,7 @@ EMNIST_NUM_CLASSES = {
 }
 
 
-class TorchvisionDatamodule(L.LightningDataModule):
+class TorchvisionDataModule(L.LightningDataModule):
     """DataModule wrapper for torchvision datasets.
 
     Supports common torchvision datasets:

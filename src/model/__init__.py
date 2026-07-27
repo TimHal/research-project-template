@@ -1,8 +1,13 @@
-"""Model architectures for research experiments."""
+"""Model architectures (nn.Module wrappers) for research experiments.
 
-from model.TIMMModel import TIMMModel
-from model.TorchModel import TorchModel
-from model.TorchvisionModel import TorchvisionModel
+Every wrapper is re-exported here so configs can reference it by the short path
+``model.<ClassName>`` (e.g. ``model.TIMMModel``). HuggingFaceModel imports
+``transformers`` lazily, so importing this package never requires it.
+"""
 
-# HuggingFaceModel requires 'transformers' — import on demand
+from model.huggingface_model import HuggingFaceModel
+from model.timm_model import TIMMModel
+from model.torch_model import TorchModel
+from model.torchvision_model import TorchvisionModel
+
 __all__ = ["HuggingFaceModel", "TIMMModel", "TorchModel", "TorchvisionModel"]

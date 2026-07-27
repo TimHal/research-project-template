@@ -8,7 +8,7 @@ TorchvisionModel, or HuggingFaceModel.
 
 Example config:
     model:
-      class_path: model.TorchModel.TorchModel
+      class_path: model.TorchModel
       init_args:
         class_path: "torchvision.models.resnet18"
         init_args:

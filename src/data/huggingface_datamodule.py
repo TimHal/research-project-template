@@ -23,7 +23,7 @@ def _import_datasets():
         return datasets
     except ImportError:
         raise ImportError(
-            "HuggingFaceDatamodule requires the 'datasets' package. "
+            "HuggingFaceDataModule requires the 'datasets' package. "
             "Install it with: pip install datasets"
         ) from None
 
@@ -52,7 +52,7 @@ class _HFImageDataset(Dataset):
         return image, label
 
 
-class HuggingFaceDatamodule(L.LightningDataModule):
+class HuggingFaceDataModule(L.LightningDataModule):
     """DataModule for HuggingFace Hub datasets.
 
     Loads any image classification dataset from the HuggingFace Hub.

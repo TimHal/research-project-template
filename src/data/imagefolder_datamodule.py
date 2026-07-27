@@ -17,7 +17,7 @@ import torchvision
 import torchvision.transforms as transforms
 
 
-class ImageFolderDatamodule(L.LightningDataModule):
+class ImageFolderDataModule(L.LightningDataModule):
     """DataModule for image datasets organized as class subdirectories.
 
     Expected directory layouts:

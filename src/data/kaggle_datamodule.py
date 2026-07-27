@@ -32,7 +32,7 @@ def _import_kaggle():
         return kaggle_api
     except ImportError:
         raise ImportError(
-            "KaggleDatamodule requires the 'kaggle' package. "
+            "KaggleDataModule requires the 'kaggle' package. "
             "Install it with: pip install kaggle\n"
             "You also need a Kaggle API token at ~/.kaggle/kaggle.json. "
             "See: https://github.com/Kaggle/kaggle-api#api-credentials"
@@ -91,7 +91,7 @@ class _PixelDataset(Dataset):
         return image, self.labels[idx]
 
 
-class KaggleDatamodule(L.LightningDataModule):
+class KaggleDataModule(L.LightningDataModule):
     """DataModule for Kaggle datasets and competitions.
 
     Downloads data via the Kaggle API, then loads it as either an ImageFolder

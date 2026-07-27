@@ -32,7 +32,7 @@ from typing import Optional
 import torch
 from lightning.pytorch.cli import LightningCLI
 
-from core.callbacks.SaveConfigCallback import SaveMLFlowConfigCallback
+from core.callbacks import SaveConfigArtifactCallback
 
 # Constants
 RUN_ID_TIMESTAMP_FORMAT = "%Y-%m-%d_%H_%M"
@@ -74,7 +74,7 @@ class ResearchCLI(LightningCLI):
 
     def _set_default_kwargs(self, kwargs: dict) -> None:
         """Set default keyword arguments if not provided."""
-        kwargs.setdefault("save_config_callback", SaveMLFlowConfigCallback)
+        kwargs.setdefault("save_config_callback", SaveConfigArtifactCallback)
         kwargs.setdefault(
             "parser_kwargs",
             {"parser_mode": "omegaconf", "error_handler": None},
@@ -243,7 +243,7 @@ class ResearchCLI(LightningCLI):
 
         callbacks.append(
             {
-                "class_path": "core.callbacks.LogOutputCallback.LogOutputCallback",
+                "class_path": "core.callbacks.LogOutputCallback",
                 "init_args": {"artifact_name": "output.log"},
             }
         )
@@ -266,7 +266,7 @@ class ResearchCLI(LightningCLI):
 
         callbacks.append(
             {
-                "class_path": "core.callbacks.LogDatasetCallback.LogDatasetCallback",
+                "class_path": "core.callbacks.LogDatasetCallback",
                 "init_args": {
                     "log_train": True,
                     "log_val": True,

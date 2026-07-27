@@ -26,7 +26,7 @@ def _import_mlcroissant():
         return mlcroissant
     except ImportError:
         raise ImportError(
-            "CroissantDatamodule requires the 'mlcroissant' package. "
+            "CroissantDataModule requires the 'mlcroissant' package. "
             "Install it with: pip install mlcroissant"
         ) from None
 
@@ -79,7 +79,7 @@ class _CroissantImageDataset(Dataset):
         return image, label
 
 
-class CroissantDatamodule(L.LightningDataModule):
+class CroissantDataModule(L.LightningDataModule):
     """DataModule for datasets described by Croissant JSON-LD metadata.
 
     Loads datasets using the mlcroissant library, which reads standardized
@@ -87,7 +87,7 @@ class CroissantDatamodule(L.LightningDataModule):
 
     Note:
         All records are materialized into memory during ``setup()``. For very
-        large datasets, consider using WebDatasetDatamodule instead.
+        large datasets, consider using WebDatasetDataModule instead.
 
     Args:
         metadata_path: Path or URL to the Croissant JSON-LD metadata file

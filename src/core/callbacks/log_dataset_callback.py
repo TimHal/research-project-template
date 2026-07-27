@@ -29,7 +29,7 @@ class LogDatasetCallback(L.Callback):
 
         trainer:
           callbacks:
-            - class_path: core.callbacks.LogDatasetCallback.LogDatasetCallback
+            - class_path: core.callbacks.LogDatasetCallback
               init_args:
                 log_train: true
                 log_val: true

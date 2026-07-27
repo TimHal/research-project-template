@@ -20,7 +20,7 @@ Common text models:
 - DistilBERT: distilbert-base-uncased
 """
 
-from typing import Any, Optional
+from typing import Any
 
 import torch
 import torch.nn as nn

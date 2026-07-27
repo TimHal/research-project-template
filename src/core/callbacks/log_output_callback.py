@@ -47,7 +47,7 @@ class LogOutputCallback(L.Callback):
 
         trainer:
           callbacks:
-            - class_path: core.callbacks.LogOutputCallback.LogOutputCallback
+            - class_path: core.callbacks.LogOutputCallback
               init_args:
                 artifact_name: "training_output.log"
     """
@@ -138,7 +138,7 @@ class LogOutputCallback(L.Callback):
 
         # Add header
         end_time = datetime.now()
-        output_lines.append(f"# Experiment Output Log")
+        output_lines.append("# Experiment Output Log")
         output_lines.append(f"# Stage: {stage}")
         if self._start_time:
             output_lines.append(f"# Started: {self._start_time.isoformat()}")

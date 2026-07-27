@@ -1,5 +1,9 @@
-"""Task modules (LightningModules) for training."""
+"""Tasks (LightningModules) that define training, loss, and metrics.
 
-from task.ClassificationTask import ClassificationTask
+Re-exported so configs can reference the short path ``task.<ClassName>``
+(e.g. ``task.ClassificationTask``).
+"""
+
+from task.classification_task import ClassificationTask
 
 __all__ = ["ClassificationTask"]

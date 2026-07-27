@@ -20,7 +20,6 @@ import torch
 import torch.nn as nn
 import torchvision.models as tv_models
 
-
 # Classifier head attribute names used by different torchvision architectures
 _CLASSIFIER_ATTR_NAMES = ("fc", "classifier", "head", "heads")
 

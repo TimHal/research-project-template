@@ -26,13 +26,13 @@ trainer:
       log_model: true
 
 model:
-  class_path: task.ClassificationTask.ClassificationTask
+  class_path: task.ClassificationTask
   init_args:
     num_classes: 131        # Fruits-360 has 131 classes
     learning_rate: 1e-3
     weight_decay: 0.01
     model:
-      class_path: model.TIMMModel.TIMMModel
+      class_path: model.TIMMModel
       init_args:
         model_name: "resnet18"
         pretrained: true
@@ -44,7 +44,7 @@ model:
 
 # --- ImageFolder mode (most Kaggle image datasets) ---
 data:
-  class_path: data.KaggleDatamodule.KaggleDatamodule
+  class_path: data.KaggleDataModule
   init_args:
     dataset_slug: "moltean/fruits"
     root_dir: "./data/kaggle_fruits"
@@ -60,7 +60,7 @@ data:
 
 # --- CSV mode with pixel data (uncomment for Kaggle competitions like digit-recognizer) ---
 # data:
-#   class_path: data.KaggleDatamodule.KaggleDatamodule
+#   class_path: data.KaggleDataModule
 #   init_args:
 #     competition: "digit-recognizer"
 #     root_dir: "./data/kaggle_digits"

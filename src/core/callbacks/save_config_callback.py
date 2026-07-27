@@ -7,7 +7,7 @@ import lightning as L
 from lightning.pytorch.cli import SaveConfigCallback
 
 
-class SaveMLFlowConfigCallback(SaveConfigCallback):
+class SaveConfigArtifactCallback(SaveConfigCallback):
     """Save experiment config.yaml as a logger artifact.
 
     This callback automatically saves the full experiment configuration

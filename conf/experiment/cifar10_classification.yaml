@@ -25,13 +25,13 @@ trainer:
       log_model: true
 
 model:
-  class_path: task.ClassificationTask.ClassificationTask
+  class_path: task.ClassificationTask
   init_args:
     num_classes: 10
     learning_rate: 1e-3
     weight_decay: 0.01
     model:
-      class_path: model.TIMMModel.TIMMModel
+      class_path: model.TIMMModel
       init_args:
         model_name: "resnet18"
         pretrained: true
@@ -42,7 +42,7 @@ model:
       T_max: 50
 
 data:
-  class_path: data.TorchvisionDatamodule.TorchvisionDatamodule
+  class_path: data.TorchvisionDataModule
   init_args:
     dataset_name: "CIFAR10"
     root_dir: "./data"
