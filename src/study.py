@@ -56,9 +56,7 @@ def _suggest_param(trial: optuna.Trial, name: str, spec: dict):
     elif ptype == "int":
         return trial.suggest_int(name, spec["low"], spec["high"], log=spec.get("log", False))
     elif ptype == "categorical":
-        choices = spec["choices"]
-        idx = trial.suggest_categorical(name, list(range(len(choices))))
-        return choices[idx]
+        return trial.suggest_categorical(name, list(spec["choices"]))
     else:
         raise ValueError(f"Unknown search space type: {ptype}")
 
@@ -72,13 +70,6 @@ def _resolve_objectives(study_settings: dict) -> tuple[list[str], list[str]]:
     if "metrics" in study_settings and "directions" in study_settings:
         return study_settings["metrics"], study_settings["directions"]
     return [study_settings["metric"]], [study_settings["direction"]]
-
-
-def _resolve_categorical(key: str, value, search_space: dict):
-    """Resolve a categorical index back to its actual value."""
-    if key in search_space and search_space[key]["type"] == "categorical":
-        return search_space[key]["choices"][value]
-    return value
 
 
 def _build_callbacks(study_cfg: dict, trial: optuna.Trial, metrics: list[str], directions: list[str]) -> list:
@@ -428,18 +419,17 @@ def run_study(base_config_path: str, study_config_path: str, n_trials_override: 
             vals = ", ".join(f"{m}={v:.6f}" for m, v in zip(metrics, t.values, strict=True))
             print(f"  Trial #{t.number}: {vals}")
             for key, value in t.params.items():
-                print(f"    {key}: {_resolve_categorical(key, value, search_space)}")
+                print(f"    {key}: {value}")
     else:
         best = study.best_trial
-        resolved_params = {k: _resolve_categorical(k, v, search_space) for k, v in best.params.items()}
 
         print(f"\nBest trial: #{best.number}")
         print(f"Best value ({metrics[0]}): {study.best_value:.6f}")
         print("Best params:")
-        for key, value in resolved_params.items():
+        for key, value in best.params.items():
             print(f"  {key}: {value}")
 
-        override_args = [f"  --{k}={v}" for k, v in resolved_params.items()]
+        override_args = [f"  --{k}={v}" for k, v in best.params.items()]
         print("\nTo train with the best params, run:")
         print(f"  PYTHONPATH=src python src/cli.py fit --config {base_config_path} \\")
         print(" \\\n".join(override_args))
