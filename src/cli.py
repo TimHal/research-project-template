@@ -1,4 +1,4 @@
-"""Research CLI - Command Line Interface for PyTorch Lightning experiments.
+r"""Research CLI - Command Line Interface for PyTorch Lightning experiments.
 
 This CLI provides a flexible interface for running experiments with:
 - Automatic run ID generation with timestamps
@@ -13,15 +13,15 @@ Usage:
     PYTHONPATH=src python src/cli.py fit --config conf/experiment/my_experiment.yaml
 
     # Testing with checkpoint
-    PYTHONPATH=src python src/cli.py test --config conf/experiment/my_experiment.yaml \\
+    PYTHONPATH=src python src/cli.py test --config conf/experiment/my_experiment.yaml \
         --ckpt_path path/to/checkpoint.ckpt
 
     # Override config values
-    PYTHONPATH=src python src/cli.py fit --config conf/experiment/my_experiment.yaml \\
+    PYTHONPATH=src python src/cli.py fit --config conf/experiment/my_experiment.yaml \
         --trainer.max_epochs=100 --data.init_args.batch_size=128
 
     # Custom run ID
-    PYTHONPATH=src python src/cli.py fit --config conf/experiment/my_experiment.yaml \\
+    PYTHONPATH=src python src/cli.py fit --config conf/experiment/my_experiment.yaml \
         --run_id my_custom_run
 """
 

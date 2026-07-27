@@ -1,5 +1,7 @@
-"""Tests for the shared config instantiation used by both `fit`-style loading
-(notebooks) and the Optuna study — they must resolve configs identically.
+"""Tests for the shared config instantiation helpers.
+
+`fit`-style loading (notebooks) and the Optuna study go through the same code
+path here, so they must resolve configs identically.
 """
 
 import torch

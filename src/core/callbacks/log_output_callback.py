@@ -18,17 +18,21 @@ class TeeStream:
         self.buffer = buffer
 
     def write(self, data: str) -> int:
+        """Write to the original stream and the buffer."""
         self.original_stream.write(data)
         self.buffer.write(data)
         return len(data)
 
     def flush(self):
+        """Flush the original stream."""
         self.original_stream.flush()
 
     def isatty(self) -> bool:
+        """Report whether the original stream is a terminal."""
         return hasattr(self.original_stream, "isatty") and self.original_stream.isatty()
 
     def fileno(self):
+        """Return the file descriptor of the original stream."""
         return self.original_stream.fileno()
 
 

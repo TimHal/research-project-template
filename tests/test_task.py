@@ -1,5 +1,7 @@
-"""Tests for ClassificationTask: a forward-shape check and an end-to-end
-fast_dev_run smoke test that exercises the full training loop on random data.
+"""Tests for ClassificationTask.
+
+A forward-shape check plus an end-to-end fast_dev_run smoke test that exercises
+the full training loop on random data.
 """
 
 import lightning as L

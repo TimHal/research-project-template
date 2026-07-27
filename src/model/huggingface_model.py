@@ -113,6 +113,8 @@ class HuggingFaceModel(nn.Module):
         Args:
             x: Input tensor. For vision models: [N, C, H, W].
                 For text models: token IDs [N, seq_len] (pass attention_mask via kwargs).
+            **kwargs: Extra keyword arguments forwarded to the wrapped model
+                (e.g. attention_mask for text models).
 
         Returns:
             Logits tensor [N, num_labels] for classification, or
@@ -133,6 +135,7 @@ class HuggingFaceModel(nn.Module):
 
         Args:
             x: Input tensor (same format as forward)
+            **kwargs: Extra keyword arguments forwarded to the wrapped model.
 
         Returns:
             Last hidden state tensor [N, seq_len, hidden_dim]
