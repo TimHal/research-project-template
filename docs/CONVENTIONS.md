@@ -146,4 +146,10 @@ module-level functions (not lambdas) so transforms stay picklable and work with
 - Metric names are always `split/metric` so loggers and early-stopping monitors
   line up (`--early_stopping_monitor=val/acc`).
 - Docstrings: module docstring stating purpose; Google-style `Args:` on public
-  classes/functions. Match the surrounding density.
+  classes/functions. Match the surrounding density. Types belong in the
+  annotations, not in the `Args:` entries.
+- VS Code generates this style for you: install the recommended
+  [autoDocstring](https://marketplace.visualstudio.com/items?itemName=njpwerner.autoDocstring)
+  extension, then type `"""` under a `def`/`class` and press Enter. The template
+  lives in `.vscode/docstring.mustache`; `moddoc`, `clsdoc`, and `cfgex`
+  snippets cover module headers and YAML examples.
