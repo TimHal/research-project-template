@@ -15,9 +15,10 @@ from typing import Callable, Optional
 
 import lightning as L
 import torch
-import torchvision.transforms as transforms
 from PIL import Image
 from torch.utils.data import Dataset, TensorDataset
+
+from data.transforms import build_image_transform
 
 
 def _import_pandas():
@@ -158,55 +159,20 @@ class ParquetDataModule(L.LightningDataModule):
         self.norm_std = norm_std
 
         if mode == "image_path":
-            self.train_transform = train_transform or self._get_default_train_transform()
-            self.val_transform = val_transform or self._get_default_val_transform()
+            self.train_transform = train_transform or build_image_transform(
+                self.img_size, self.img_mode, self.augmentation,
+                self.norm_mean, self.norm_std, train=True,
+            )
+            self.val_transform = val_transform or build_image_transform(
+                self.img_size, self.img_mode, self.augmentation,
+                self.norm_mean, self.norm_std, train=False,
+            )
         else:
             self.train_transform = None
             self.val_transform = None
 
         self._num_classes = None
 
-    def _get_default_train_transform(self) -> transforms.Compose:
-        """Get default training transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        if self.img_mode == "L":
-            transform_list.append(transforms.Grayscale(num_output_channels=1))
-        else:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-
-        if self.augmentation == "basic":
-            transform_list.extend([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomRotation(degrees=15),
-            ])
-
-        transform_list.append(transforms.ToTensor())
-
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
-
-    def _get_default_val_transform(self) -> transforms.Compose:
-        """Get default validation/test transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        if self.img_mode == "L":
-            transform_list.append(transforms.Grayscale(num_output_channels=1))
-        else:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-
-        transform_list.append(transforms.ToTensor())
-
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
 
     def _build_tabular_dataset(self, df) -> TensorDataset:
         """Build a TensorDataset from a DataFrame for tabular mode."""

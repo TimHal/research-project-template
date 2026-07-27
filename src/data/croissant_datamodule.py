@@ -14,9 +14,10 @@ from typing import Callable, Optional
 
 import lightning as L
 import torch
-import torchvision.transforms as transforms
 from PIL import Image
 from torch.utils.data import Dataset
+
+from data.transforms import build_image_transform
 
 
 def _import_mlcroissant():
@@ -166,54 +167,19 @@ class CroissantDataModule(L.LightningDataModule):
         self.norm_mean = norm_mean
         self.norm_std = norm_std
 
-        self.train_transform = train_transform or self._get_default_train_transform()
-        self.val_transform = val_transform or self._get_default_val_transform()
+        self.train_transform = train_transform or build_image_transform(
+            self.img_size, self.img_mode, self.augmentation,
+            self.norm_mean, self.norm_std, train=True,
+        )
+        self.val_transform = val_transform or build_image_transform(
+            self.img_size, self.img_mode, self.augmentation,
+            self.norm_mean, self.norm_std, train=False,
+        )
 
         self._num_classes = None
         self._label_map = {}
         self.class_names = []
 
-    def _get_default_train_transform(self) -> transforms.Compose:
-        """Get default training transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        if self.img_mode == "L":
-            transform_list.append(transforms.Grayscale(num_output_channels=1))
-        else:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-
-        if self.augmentation == "basic":
-            transform_list.extend([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomRotation(degrees=15),
-            ])
-
-        transform_list.append(transforms.ToTensor())
-
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
-
-    def _get_default_val_transform(self) -> transforms.Compose:
-        """Get default validation/test transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        if self.img_mode == "L":
-            transform_list.append(transforms.Grayscale(num_output_channels=1))
-        else:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-
-        transform_list.append(transforms.ToTensor())
-
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
 
     def _detect_columns(self, record: dict) -> tuple[str, str]:
         """Auto-detect image and label columns from a sample record."""
@@ -272,7 +238,7 @@ class CroissantDataModule(L.LightningDataModule):
         else:
             self._label_map = {}
             self.class_names = []
-            self._num_classes = max(int(l) for l in all_labels) + 1
+            self._num_classes = max(int(label) for label in all_labels) + 1
 
         if self._explicit_num_classes is not None:
             self._num_classes = self._explicit_num_classes
@@ -296,7 +262,6 @@ class CroissantDataModule(L.LightningDataModule):
         if stage == "fit" or stage is None:
             # Split trainval into train and val
             train_size = int(len(trainval_records) * self.train_val_split[0])
-            val_size = len(trainval_records) - train_size
 
             gen2 = torch.Generator().manual_seed(self.seed)
             perm = torch.randperm(len(trainval_records), generator=gen2).tolist()

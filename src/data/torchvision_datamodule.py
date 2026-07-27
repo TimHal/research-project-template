@@ -9,7 +9,8 @@ from typing import Callable, Literal, Optional
 import lightning as L
 import torch
 import torchvision
-import torchvision.transforms as transforms
+
+from data.transforms import build_image_transform
 
 # Valid EMNIST splits
 EMNISTSplit = Literal["byclass", "bymerge", "balanced", "letters", "digits", "mnist"]
@@ -23,6 +24,11 @@ EMNIST_NUM_CLASSES = {
     "digits": 10,
     "mnist": 10,
 }
+
+
+def _emnist_orient(image):
+    """Undo EMNIST's default 90° rotation and mirroring. Picklable (not a lambda)."""
+    return image.rotate(-90).transpose(method=0)
 
 
 class TorchvisionDataModule(L.LightningDataModule):
@@ -123,7 +129,6 @@ class TorchvisionDataModule(L.LightningDataModule):
 
         # Determine number of channels based on img_mode
         self.num_channels = 1 if img_mode == "L" else 3
-        self._native_channels = 1 if dataset_name in self.GRAYSCALE_DATASETS else 3
 
         if norm_mean is not None and norm_std is not None:
             if len(norm_mean) != self.num_channels or len(norm_std) != self.num_channels:
@@ -132,70 +137,16 @@ class TorchvisionDataModule(L.LightningDataModule):
                     f"for img_mode {img_mode}"
                 )
 
-        # Set transforms
-        self.train_transform = train_transform or self._get_default_train_transform()
-        self.val_transform = val_transform or self._get_default_val_transform()
-
-    def _get_default_train_transform(self) -> transforms.Compose:
-        """Get default training transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        # Convert to target img_mode if needed
-        if self.img_mode == "RGB" and self._native_channels == 1:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-        elif self.img_mode == "L" and self._native_channels == 3:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("L")))
-
-        if self.dataset_name == "EMNIST":
-            # EMNIST images are rotated by 90 degrees and flipped by default
-            transform_list.append(
-                transforms.Lambda(lambda x: x.rotate(-90).transpose(method=0))
-            )
-
-        # Basic augmentation
-        if self.augmentation == "basic":
-            transform_list.extend(
-                [
-                    transforms.RandomHorizontalFlip(p=0.5),
-                    transforms.RandomRotation(degrees=15),
-                ]
-            )
-
-        transform_list.append(transforms.ToTensor())
-
-        # Normalize
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
-
-    def _get_default_val_transform(self) -> transforms.Compose:
-        """Get default validation/test transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        # Convert to target img_mode if needed
-        if self.img_mode == "RGB" and self._native_channels == 1:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-        elif self.img_mode == "L" and self._native_channels == 3:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("L")))
-
-        if self.dataset_name == "EMNIST":
-            # EMNIST images are rotated by 90 degrees and flipped by default
-            transform_list.append(
-                transforms.Lambda(lambda x: x.rotate(-90).transpose(method=0))
-            )
-
-        transform_list.append(transforms.ToTensor())
-
-        # Normalize
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
+        # EMNIST ships rotated 90° and mirrored — fix orientation before tensoring.
+        extra = [_emnist_orient] if dataset_name == "EMNIST" else None
+        self.train_transform = train_transform or build_image_transform(
+            img_size, img_mode, augmentation, norm_mean, norm_std,
+            train=True, extra_transforms=extra,
+        )
+        self.val_transform = val_transform or build_image_transform(
+            img_size, img_mode, augmentation, norm_mean, norm_std,
+            train=False, extra_transforms=extra,
+        )
 
     def prepare_data(self):
         """Download the dataset if needed."""

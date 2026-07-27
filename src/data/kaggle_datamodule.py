@@ -12,7 +12,6 @@ Supports two loading formats after download:
 - csv: CSV file with label column and optional image paths or pixel data
 """
 
-import csv
 import os
 import zipfile
 from typing import Callable, Optional
@@ -22,7 +21,9 @@ import torch
 import torchvision
 import torchvision.transforms as transforms
 from PIL import Image
-from torch.utils.data import Dataset, TensorDataset
+from torch.utils.data import Dataset
+
+from data.transforms import build_image_transform
 
 
 def _import_kaggle():
@@ -190,52 +191,16 @@ class KaggleDataModule(L.LightningDataModule):
         self.norm_mean = norm_mean
         self.norm_std = norm_std
 
-        self.train_transform = train_transform or self._get_default_train_transform()
-        self.val_transform = val_transform or self._get_default_val_transform()
+        self.train_transform = train_transform or build_image_transform(
+            self.img_size, self.img_mode, self.augmentation,
+            self.norm_mean, self.norm_std, train=True,
+        )
+        self.val_transform = val_transform or build_image_transform(
+            self.img_size, self.img_mode, self.augmentation,
+            self.norm_mean, self.norm_std, train=False,
+        )
 
         self._num_classes = num_classes
-
-    def _get_default_train_transform(self) -> transforms.Compose:
-        """Get default training transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        if self.img_mode == "L":
-            transform_list.append(transforms.Grayscale(num_output_channels=1))
-        else:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-
-        if self.augmentation == "basic":
-            transform_list.extend([
-                transforms.RandomHorizontalFlip(p=0.5),
-                transforms.RandomRotation(degrees=15),
-            ])
-
-        transform_list.append(transforms.ToTensor())
-
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
-
-    def _get_default_val_transform(self) -> transforms.Compose:
-        """Get default validation/test transforms."""
-        transform_list = [transforms.Resize(self.img_size)]
-
-        if self.img_mode == "L":
-            transform_list.append(transforms.Grayscale(num_output_channels=1))
-        else:
-            transform_list.append(transforms.Lambda(lambda x: x.convert("RGB")))
-
-        transform_list.append(transforms.ToTensor())
-
-        if self.norm_mean is not None and self.norm_std is not None:
-            transform_list.append(
-                transforms.Normalize(mean=self.norm_mean, std=self.norm_std)
-            )
-
-        return transforms.Compose(transform_list)
 
     def _is_downloaded(self) -> bool:
         """Check if data has already been downloaded."""
@@ -317,10 +282,10 @@ class KaggleDataModule(L.LightningDataModule):
         # Encode string labels
         if not labels[0].lstrip("-").isdigit():
             unique = sorted(set(labels))
-            label_map = {l: i for i, l in enumerate(unique)}
-            labels = [label_map[l] for l in labels]
+            label_map = {lbl: i for i, lbl in enumerate(unique)}
+            labels = [label_map[lbl] for lbl in labels]
         else:
-            labels = [int(l) for l in labels]
+            labels = [int(lbl) for lbl in labels]
 
         if self.image_column is not None:
             # CSV with image file paths
@@ -441,12 +406,12 @@ class KaggleDataModule(L.LightningDataModule):
                 test_data, test_labels, test_is_pixel = self._load_csv(test_path)
                 if test_is_pixel:
                     t = torch.tensor(test_data, dtype=torch.float32)
-                    l = torch.tensor(test_labels, dtype=torch.long)
+                    label_tensor = torch.tensor(test_labels, dtype=torch.long)
                     if self.image_shape is not None:
                         t = t.view(-1, *self.image_shape)
                         if t.max() > 1.0:
                             t = t / 255.0
-                    self.test_dataset = _PixelDataset(t, l, self.val_transform)
+                    self.test_dataset = _PixelDataset(t, label_tensor, self.val_transform)
                 else:
                     self.test_dataset = _CSVImageDataset(
                         test_data, test_labels, self.val_transform, self.root_dir
