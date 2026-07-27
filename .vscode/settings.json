@@ -1,0 +1,15 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:conda",
+    "python-envs.defaultPackageManager": "ms-python.python:conda",
+    "python-envs.pythonProjects": [],
+
+    // Docstrings: type `"""` under a def/class and press Enter (or Ctrl+Shift+2)
+    // to generate a skeleton in this repo's Google style.
+    "autoDocstring.docstringFormat": "google",
+    "autoDocstring.customTemplatePath": ".vscode/docstring.mustache",
+    "autoDocstring.generateDocstringOnEnter": true,
+    "autoDocstring.startOnNewLine": false,
+    "autoDocstring.includeExtendedSummary": false,
+    "autoDocstring.includeName": false,
+    "autoDocstring.guessTypes": false
+}

@@ -1,0 +1,42 @@
+{
+    "Module docstring": {
+        "scope": "python",
+        "prefix": "moddoc",
+        "body": [
+            "\"\"\"${1:One-line summary of what this module provides.}",
+            "",
+            "${2:Why it exists and how it fits with the rest of the template.}",
+            "\"\"\"",
+            "$0"
+        ],
+        "description": "Module-level docstring: summary line, blank line, prose."
+    },
+    "Class docstring with Args": {
+        "scope": "python",
+        "prefix": "clsdoc",
+        "body": [
+            "\"\"\"${1:One-line summary of the class.}",
+            "",
+            "${2:What it does and when to use it.}",
+            "",
+            "Args:",
+            "    ${3:arg}: ${4:Description of the constructor argument.}",
+            "\"\"\"",
+            "$0"
+        ],
+        "description": "Class docstring documenting the constructor args (repo convention)."
+    },
+    "Example config block": {
+        "scope": "python",
+        "prefix": "cfgex",
+        "body": [
+            "Example config:",
+            "    ${1|model,data,trainer|}:",
+            "      class_path: ${2:package.ClassName}",
+            "      init_args:",
+            "        ${3:arg}: ${4:value}",
+            "$0"
+        ],
+        "description": "YAML usage example for a docstring, using the short class_path form."
+    }
+}
