@@ -17,3 +17,12 @@ ignore = ["E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["cli", "core", "data", "model", "task", "util"]
+
+[tool.pytest.ini_options]
+# Put src/ on the import path so tests can `import task`, `import data`, ...
+# without the PYTHONPATH=src prefix.
+pythonpath = ["src"]
+testpaths = ["tests"]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+]
