@@ -29,16 +29,21 @@ PYTHONPATH=src python src/cli.py test \
 src/
 ├── cli.py              # CLI entry point (extends LightningCLI)
 ├── study.py            # Optuna hyperparameter study runner
-├── core/callbacks/     # Custom callbacks (SaveConfig, LogOutput, LogDataset)
-├── data/               # DataModules (Torchvision, HuggingFace, ImageFolder, WebDataset, Parquet, Croissant, Kaggle)
+├── core/callbacks/     # Custom callbacks (SaveConfigArtifact, LogOutput, LogDataset)
+├── data/               # DataModules (Torchvision, HuggingFace, ImageFolder, …) + transforms.py
 ├── model/              # Model wrappers (TIMM, torchvision, HuggingFace, generic)
 ├── task/               # LightningModules (ClassificationTask)
-└── util/               # Utilities (viz, model_loading, mlflow)
+└── util/               # Utilities (viz, model_loading, instantiate, mlflow)
 
 conf/experiment/        # Experiment YAML configs
 conf/study/             # Optuna study configs
 nbs/                    # Analysis notebooks
+tests/                  # pytest suite (see tests/README.md)
+docs/                   # Conventions & cheat sheet (docs/CONVENTIONS.md)
 ```
+
+> **Conventions:** naming, the file → re-export → short `class_path` workflow,
+> and test rules are documented in [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md).
 
 ## How Configs Work
 
@@ -56,19 +61,19 @@ trainer:                     # PyTorch Lightning Trainer settings
       experiment_name: "My-Experiment"
 
 model:                       # Task (LightningModule) wrapping a model architecture
-  class_path: task.ClassificationTask.ClassificationTask
+  class_path: task.ClassificationTask
   init_args:
     num_classes: 10
     learning_rate: 1e-3
     model:                   # <-- The actual neural network (nn.Module)
-      class_path: model.TIMMModel.TIMMModel
+      class_path: model.TIMMModel
       init_args:
         model_name: "resnet18"
         pretrained: true
         num_classes: 10
 
 data:                        # DataModule
-  class_path: data.TorchvisionDatamodule.TorchvisionDatamodule
+  class_path: data.TorchvisionDataModule
   init_args:
     dataset_name: "CIFAR10"
     batch_size: 64
@@ -144,6 +149,15 @@ The study config (`conf/study/example_cifar10_classification.yaml`) defines:
 - **pruner** — MedianPruner (default), stops unpromising trials early
 - **overrides** — fixed config changes for all trials (e.g. fewer epochs during search)
 
+> **Training parity:** Each trial builds its model, datamodule, and `Trainer`
+> from the *same* config resolution as `fit`, so all `trainer:` settings
+> (`accumulate_grad_batches`, `precision`, `gradient_clip_val`, `strategy`, ...)
+> apply during the search exactly as they would in a full run. The study only
+> takes over `logger`, `callbacks`, and checkpointing: every trial gets a
+> pruning callback and its own logged run, and checkpointing is disabled so
+> trials don't litter artifacts. Adjust anything else via the base config or
+> `overrides`.
+
 Study state is persisted to journal files in `./sweeps/` for safe concurrent multi-process execution. After completion, the best parameters and a ready-to-run CLI command are printed.
 
 See the [Optuna docs](https://optuna.readthedocs.io/en/stable/tutorial/index.html) for more on samplers, pruners, and multi-objective optimization.
@@ -161,7 +175,7 @@ The template provides four model wrappers under `src/model/`. All support `forwa
 
 ```yaml
 model:
-  class_path: model.TIMMModel.TIMMModel
+  class_path: model.TIMMModel
   init_args:
     model_name: "resnet18"         # or vit_base_patch16_224, efficientnet_b0, swin_base_patch4_window7_224, ...
     pretrained: true
@@ -174,7 +188,7 @@ Standard PyTorch vision models. No extra dependencies beyond torchvision.
 
 ```yaml
 model:
-  class_path: model.TorchvisionModel.TorchvisionModel
+  class_path: model.TorchvisionModel
   init_args:
     model_name: "resnet50"         # or vit_b_16, efficientnet_b0, swin_t, mobilenet_v3_small, ...
     weights: "IMAGENET1K_V2"       # or "DEFAULT", true (= DEFAULT), null (random init)
@@ -187,7 +201,7 @@ Vision and text models from HuggingFace. Requires `pip install transformers`.
 
 ```yaml
 model:
-  class_path: model.HuggingFaceModel.HuggingFaceModel
+  class_path: model.HuggingFaceModel
   init_args:
     model_name: "google/vit-base-patch16-224"
     task: "image-classification"   # or "sequence-classification", "feature-extraction"
@@ -200,7 +214,7 @@ Instantiate any `nn.Module` by Python import path. Escape hatch for models not c
 
 ```yaml
 model:
-  class_path: model.TorchModel.TorchModel
+  class_path: model.TorchModel
   init_args:
     class_path: "torchvision.models.resnet18"
     init_args:
@@ -214,13 +228,13 @@ model:
 
 The template provides seven DataModules under `src/data/` for loading data from common sources. All are configured via the `data:` section in experiment YAML configs.
 
-### TorchvisionDatamodule — built-in datasets
+### TorchvisionDataModule — built-in datasets
 
 Standard torchvision datasets (CIFAR10/100, MNIST, FashionMNIST, KMNIST, EMNIST, STL10, SVHN). No extra dependencies.
 
 ```yaml
 data:
-  class_path: data.TorchvisionDatamodule.TorchvisionDatamodule
+  class_path: data.TorchvisionDataModule
   init_args:
     dataset_name: "CIFAR10"
     batch_size: 64
@@ -228,13 +242,13 @@ data:
     augmentation: "basic"
 ```
 
-### ImageFolderDatamodule — local image directories
+### ImageFolderDataModule — local image directories
 
 Load images organized as `root/class_name/image.jpg`. Auto-detects `train/`/`val/`/`test/` subdirectories, or auto-splits a single directory. No extra dependencies.
 
 ```yaml
 data:
-  class_path: data.ImageFolderDatamodule.ImageFolderDatamodule
+  class_path: data.ImageFolderDataModule
   init_args:
     root_dir: "./data/my_dataset"     # contains train/, val/, test/ or class folders directly
     img_size: [224, 224]
@@ -242,13 +256,13 @@ data:
     augmentation: "basic"
 ```
 
-### HuggingFaceDatamodule — [HuggingFace Hub](https://huggingface.co/datasets)
+### HuggingFaceDataModule — [HuggingFace Hub](https://huggingface.co/datasets)
 
 Any image classification dataset from the HuggingFace Hub. Auto-detects image and label columns. Requires `pip install datasets`.
 
 ```yaml
 data:
-  class_path: data.HuggingFaceDatamodule.HuggingFaceDatamodule
+  class_path: data.HuggingFaceDataModule
   init_args:
     dataset_name: "beans"             # or "cifar10", "imagenet-1k", any HF dataset
     img_size: [224, 224]
@@ -256,7 +270,7 @@ data:
     augmentation: "basic"
 ```
 
-### ParquetDatamodule — Parquet files
+### ParquetDataModule — Parquet files
 
 Load data from Parquet files in two modes. Requires `pip install pyarrow`.
 
@@ -264,7 +278,7 @@ Load data from Parquet files in two modes. Requires `pip install pyarrow`.
 
 ```yaml
 data:
-  class_path: data.ParquetDatamodule.ParquetDatamodule
+  class_path: data.ParquetDataModule
   init_args:
     train_file: "./data/tabular/train.parquet"
     test_file: "./data/tabular/test.parquet"
@@ -277,7 +291,7 @@ data:
 
 ```yaml
 data:
-  class_path: data.ParquetDatamodule.ParquetDatamodule
+  class_path: data.ParquetDataModule
   init_args:
     train_file: "./data/images/metadata.parquet"
     label_column: "label"
@@ -288,13 +302,13 @@ data:
     batch_size: 32
 ```
 
-### WebDatasetDatamodule — [WebDataset](https://webdataset.github.io/webdataset/) tar archives
+### WebDatasetDataModule — [WebDataset](https://webdataset.github.io/webdataset/) tar archives
 
 Stream large-scale datasets from sharded tar files without loading everything into memory. Requires `pip install webdataset`.
 
 ```yaml
 data:
-  class_path: data.WebDatasetDatamodule.WebDatasetDatamodule
+  class_path: data.WebDatasetDataModule
   init_args:
     train_urls: "./data/wds/train-{0000..0099}.tar"
     val_urls: "./data/wds/val-{0000..0009}.tar"
@@ -306,13 +320,13 @@ data:
     num_workers: 8
 ```
 
-### CroissantDatamodule — [Croissant](https://github.com/mlcommons/croissant) metadata
+### CroissantDataModule — [Croissant](https://github.com/mlcommons/croissant) metadata
 
 Load datasets described by Croissant JSON-LD metadata files — the standard format adopted by HuggingFace, Kaggle, and OpenML. Requires `pip install mlcroissant`.
 
 ```yaml
 data:
-  class_path: data.CroissantDatamodule.CroissantDatamodule
+  class_path: data.CroissantDataModule
   init_args:
     metadata_path: "./data/my_dataset/croissant.json"
     record_set: "images"              # which record set to load
@@ -321,14 +335,14 @@ data:
     test_ratio: 0.1                   # hold out 10% for testing
 ```
 
-### KaggleDatamodule — [Kaggle](https://www.kaggle.com/) datasets & competitions
+### KaggleDataModule — [Kaggle](https://www.kaggle.com/) datasets & competitions
 
 Download and load datasets from Kaggle. Supports ImageFolder and CSV loading formats. Requires `pip install kaggle` and a [Kaggle API token](https://github.com/Kaggle/kaggle-api#api-credentials) at `~/.kaggle/kaggle.json`.
 
 ```yaml
 # ImageFolder mode (most image datasets)
 data:
-  class_path: data.KaggleDatamodule.KaggleDatamodule
+  class_path: data.KaggleDataModule
   init_args:
     dataset_slug: "moltean/fruits"
     root_dir: "./data/kaggle_fruits"
@@ -338,7 +352,7 @@ data:
 
 # CSV mode (competitions like digit-recognizer)
 data:
-  class_path: data.KaggleDatamodule.KaggleDatamodule
+  class_path: data.KaggleDataModule
   init_args:
     competition: "digit-recognizer"
     root_dir: "./data/kaggle_digits"
@@ -389,9 +403,16 @@ plt.show()
 
 ## Extending the Template
 
+Adding a model, task, or DataModule is always the same three steps (see
+[`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) for the full conventions):
+
+1. Create a `snake_case.py` module holding one `PascalCase` class.
+2. Re-export the class from the package's `__init__.py`.
+3. Reference it in a config by the short path `package.ClassName`.
+
 ### Adding a New Model
 
-Create `src/model/MyModel.py` with any `nn.Module`:
+Create `src/model/my_model.py` with any `nn.Module`:
 
 ```python
 import torch.nn as nn
@@ -405,14 +426,20 @@ class MyModel(nn.Module):
         return self.fc(x.flatten(1))
 ```
 
-Use in config:
+Re-export it in `src/model/__init__.py`:
+
+```python
+from model.my_model import MyModel  # add to __all__ too
+```
+
+Use it in a config — note the short `model.MyModel` path:
 
 ```yaml
 model:
-  class_path: task.ClassificationTask.ClassificationTask
+  class_path: task.ClassificationTask
   init_args:
     model:
-      class_path: model.MyModel.MyModel
+      class_path: model.MyModel
       init_args:
         in_features: 3072
         num_classes: 10
@@ -420,7 +447,7 @@ model:
 
 ### Adding a New Task
 
-Create `src/task/MyTask.py` extending [LightningModule](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html):
+Create `src/task/my_task.py` extending [LightningModule](https://lightning.ai/docs/pytorch/stable/common/lightning_module.html), then re-export it from `src/task/__init__.py`:
 
 ```python
 import lightning as L
@@ -435,7 +462,7 @@ class MyTask(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         loss = ...  # your loss function
-        self.log("train/loss", loss)
+        self.log("train/loss", loss)  # use "train/…", "val/…", "test/…" metric names
         return loss
 
     def configure_optimizers(self):
@@ -444,17 +471,20 @@ class MyTask(L.LightningModule):
 
 ### Adding a New DataModule
 
-Create `src/data/MyDatamodule.py` extending [LightningDataModule](https://lightning.ai/docs/pytorch/stable/data/datamodule.html):
+Create `src/data/my_datamodule.py` extending [LightningDataModule](https://lightning.ai/docs/pytorch/stable/data/datamodule.html), then re-export it from `src/data/__init__.py`. Reuse [`build_image_transform`](src/data/transforms.py) for the standard image pipeline:
 
 ```python
 import lightning as L
 from torch.utils.data import DataLoader
 
-class MyDatamodule(L.LightningDataModule):
+from data.transforms import build_image_transform
+
+class MyDataModule(L.LightningDataModule):
     def __init__(self, data_path: str, batch_size: int = 32):
         super().__init__()
         self.data_path = data_path
         self.batch_size = batch_size
+        self.train_transform = build_image_transform((224, 224), train=True)
 
     def setup(self, stage=None):
         pass  # load your data here
@@ -462,6 +492,19 @@ class MyDatamodule(L.LightningDataModule):
     def train_dataloader(self):
         return DataLoader(self.train_dataset, batch_size=self.batch_size)
 ```
+
+## Running Tests
+
+A minimal [pytest](https://docs.pytest.org/) suite covers the core building blocks (config parsing, model/datamodule construction, a `fast_dev_run` training smoke test). It runs on CPU in seconds with no dataset downloads.
+
+```bash
+conda activate mlresearch
+pytest                # run everything
+pytest -v             # one line per test
+pytest -m "not slow"  # skip tests marked slow
+```
+
+No `PYTHONPATH=src` prefix is needed for tests — it's configured in `pyproject.toml`. See [`tests/README.md`](tests/README.md) for what's covered and how to add your own.
 
 ## Experiment Tracking
 
@@ -516,12 +559,13 @@ Assumes `mlresearch` conda environment with:
 - [omegaconf](https://omegaconf.readthedocs.io/)
 - [optuna](https://optuna.readthedocs.io/)
 - numpy, matplotlib
+- [pytest](https://docs.pytest.org/) (for running the test suite)
 - [transformers](https://huggingface.co/docs/transformers/) (optional, for HuggingFaceModel)
-- [datasets](https://huggingface.co/docs/datasets/) (optional, for HuggingFaceDatamodule)
-- [webdataset](https://webdataset.github.io/webdataset/) (optional, for WebDatasetDatamodule)
-- [mlcroissant](https://github.com/mlcommons/croissant) (optional, for CroissantDatamodule)
-- [kaggle](https://github.com/Kaggle/kaggle-api) (optional, for KaggleDatamodule)
-- [pyarrow](https://arrow.apache.org/docs/python/) (optional, for ParquetDatamodule)
+- [datasets](https://huggingface.co/docs/datasets/) (optional, for HuggingFaceDataModule)
+- [webdataset](https://webdataset.github.io/webdataset/) (optional, for WebDatasetDataModule)
+- [mlcroissant](https://github.com/mlcommons/croissant) (optional, for CroissantDataModule)
+- [kaggle](https://github.com/Kaggle/kaggle-api) (optional, for KaggleDataModule)
+- [pyarrow](https://arrow.apache.org/docs/python/) (optional, for ParquetDataModule)
 - [wandb](https://docs.wandb.ai/) (optional, for W&B tracking)
 
 ## Further Reading
