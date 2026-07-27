@@ -5,11 +5,14 @@ dataset tracking feature, supporting PyTorch, NumPy, and Pandas datasets.
 """
 
 import hashlib
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import torch
 from torch.utils.data import Dataset, Subset
+
+if TYPE_CHECKING:
+    import pandas as pd
 
 
 def compute_dataset_digest(
