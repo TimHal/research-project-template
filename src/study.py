@@ -32,6 +32,7 @@ from omegaconf import OmegaConf
 from optuna.integration import PyTorchLightningPruningCallback
 
 from util.instantiate import instantiate, resolve_init_args
+from util.paths import output_path
 
 
 def _deep_set(d: dict, dotpath: str, value) -> None:
@@ -140,6 +141,11 @@ def _build_storage(study_cfg: dict):
     storage_dir = study_cfg["study"].get("storage_dir")
     if not storage_dir:
         return None
+
+    # A relative storage_dir is resolved under the output root rather than the
+    # working directory, so studies never write journals into the project.
+    if not os.path.isabs(os.path.expanduser(storage_dir)):
+        storage_dir = output_path(os.path.normpath(storage_dir))
 
     study_name = study_cfg["study"].get("name", "hpo_study")
     os.makedirs(storage_dir, exist_ok=True)

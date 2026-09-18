@@ -26,6 +26,9 @@ def _isolated_env(tmp_path, monkeypatch):
     - Runs each test in a throwaway working directory, so any *relative* output
       (``lightning_logs/``, ``mlruns/``, checkpoints, ``./sweeps``, ``./data``)
       lands in ``tmp_path``, which pytest deletes afterwards.
+    - Points ``$OUTPUT_DIR`` at ``tmp_path`` so the shared output root is
+      isolated too, and a value exported in the developer's shell cannot leak
+      into the suite.
     - Redirects experiment trackers and caches to temp/offline, so tests never
       touch a real MLflow server, W&B account, or shared cache — even if a new
       test configures a logger.
@@ -33,6 +36,9 @@ def _isolated_env(tmp_path, monkeypatch):
     Config discovery still works: configs are found via absolute paths.
     """
     monkeypatch.chdir(tmp_path)
+
+    # Generated run outputs -> temp, never the developer's real output root.
+    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "outputs"))
 
     # MLflow -> local temp file store, never a real tracking server.
     monkeypatch.setenv("MLFLOW_TRACKING_URI", (tmp_path / "mlruns").as_uri())

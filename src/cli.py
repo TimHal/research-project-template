@@ -33,6 +33,7 @@ import torch
 from lightning.pytorch.cli import LightningCLI
 
 from core.callbacks import SaveConfigArtifactCallback
+from util.paths import output_path
 
 # Constants
 RUN_ID_TIMESTAMP_FORMAT = "%Y-%m-%d_%H_%M"
@@ -153,6 +154,7 @@ class ResearchCLI(LightningCLI):
 
         # Configure logger (MLFlow or W&B)
         self._configure_logger(config, run_id)
+        self._set_default_root_dir(config)
 
         # Add standard callbacks
         self._add_lr_monitor_callback(callbacks, config)
@@ -161,6 +163,17 @@ class ResearchCLI(LightningCLI):
         self._add_early_stopping_callback(callbacks)
 
         config["trainer"]["callbacks"] = callbacks
+
+    def _set_default_root_dir(self, config: dict) -> None:
+        """Keep Lightning's generated files out of the project directory.
+
+        ``default_root_dir`` otherwise falls back to the current working
+        directory, and with a remote tracking URI the logger offers no
+        ``save_dir``, so checkpoints land in ``<repo>/<experiment_id>/<run_id>/``.
+        An explicit value in the config or on the command line still wins.
+        """
+        if not config["trainer"].get("default_root_dir"):
+            config["trainer"]["default_root_dir"] = output_path("runs")
 
     def _get_subcommand_config(self) -> dict:
         """Get the configuration for the current subcommand."""

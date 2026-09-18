@@ -17,7 +17,9 @@ study:
   direction: minimize          # minimize or maximize
   metric: "val/loss"           # metric from trainer.callback_metrics
   n_trials: 20
-  storage_dir: "./sweeps"      # Journal file at ./sweeps/<name>.journal; safe for multi-process
+  # Relative paths resolve under $OUTPUT_DIR (default ~/.cache/research-project),
+  # so journals never land in the project. Absolute paths are used verbatim.
+  storage_dir: "./sweeps"      # Journal file at <root>/sweeps/<name>.journal; multi-process safe
   sampler: TPESampler          # TPESampler, RandomSampler, CmaEsSampler, NSGAIISampler
   pruner:
     type: MedianPruner
