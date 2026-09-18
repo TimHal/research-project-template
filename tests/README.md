@@ -28,6 +28,7 @@ No `PYTHONPATH=src` prefix is needed — `pythonpath = ["src"]` in
 | `test_transforms.py`     | `build_image_transform` output shapes + picklability       |
 | `test_datamodule.py`     | `TorchvisionDataModule` validation + synthetic ImageFolder |
 | `test_task.py`           | `ClassificationTask` forward shape + a `fast_dev_run` fit  |
+| `test_paths.py`          | Output root resolution; nothing written into the project   |
 | `test_viz_utils.py`      | `denormalize` / `batch_to_grid` shapes and ranges          |
 | `test_study_utils.py`    | Optuna helpers (`_deep_set`) + parameter suggestion        |
 

@@ -120,6 +120,37 @@ PYTHONPATH=src python src/cli.py fit \
 
 By default, stdout/stderr is captured and logged as an artifact (`output.log`). Works with both MLflow and W&B. Disable with `--log_output=false`.
 
+### Where Generated Files Go
+
+Nothing a run produces is written into the project directory. Checkpoints and
+Optuna journals go under a single output root:
+
+```bash
+export OUTPUT_DIR=/data/<user>/runs
+```
+
+When unset it defaults to `~/.cache/research-project`. The layout underneath is:
+
+| Path | Written by |
+| ---- | ---------- |
+| `<root>/runs/<experiment_id>/<run_id>/checkpoints/` | Lightning's `ModelCheckpoint` |
+| `<root>/sweeps/` | Optuna journals (a relative `storage_dir`) |
+
+This matters because Lightning resolves checkpoints against
+`Trainer.default_root_dir`, which defaults to the *current working directory*.
+With a remote MLflow `tracking_uri` the logger reports no `save_dir`, so a run
+started from the repo root would otherwise drop
+`<repo>/<experiment_id>/<run_id>/checkpoints/` into your source tree. The CLI
+sets `default_root_dir` for you; an explicit value in a config or on the command
+line still wins.
+
+Artifacts destined for the tracker (the captured log, the resolved config, any
+figures) are written to a temp directory and uploaded from there, so they are
+unaffected.
+
+When you fork this template, rename `ENV_VAR` and `DEFAULT_ROOT` in
+`src/util/paths.py` so several projects can coexist on one machine.
+
 ### Dataset Tracking
 
 Datasets are automatically registered with [MLflow dataset tracking](https://mlflow.org/docs/latest/tracking/data-api.html) (metadata, digest, split info). MLflow only. Disable with `--log_datasets=false`.

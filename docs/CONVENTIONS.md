@@ -15,7 +15,7 @@ src/
 ├── data/                  # DataModules + transforms.py (shared image pipeline)
 ├── model/                 # nn.Module wrappers (architectures)
 ├── task/                  # LightningModules (training logic, loss, metrics)
-└── util/                  # instantiate, model_loading, viz, mlflow, dataset helpers
+└── util/                  # instantiate, model_loading, paths, viz, mlflow, datasets
 conf/experiment/           # One YAML per experiment
 conf/study/                # One YAML per Optuna study
 tests/                     # pytest suite (offline, hermetic)
@@ -124,6 +124,22 @@ new image DataModules instead of copying transform code. Callables are
 module-level functions (not lambdas) so transforms stay picklable and work with
 `num_workers > 0`. Dataset-specific steps go through `extra_transforms=[...]`
 (see the EMNIST orientation fix in `torchvision_datamodule.py`).
+
+---
+
+## Generated files never land in the source tree
+
+Anything a run writes goes under the output root from `util/paths.py`
+(`$OUTPUT_DIR`, default `~/.cache/research-project`) — never a path relative to
+the working directory. `output_path("runs")` and friends build those locations;
+use them for new argparse defaults and config fallbacks instead of
+`./something`.
+
+This is easy to get wrong because Lightning resolves `ModelCheckpoint` against
+`Trainer.default_root_dir`, which falls back to `os.getcwd()` whenever the
+logger reports no `save_dir` — which is exactly the case for a remote MLflow
+`tracking_uri`. Artifacts meant for the tracker (images, CSVs, configs) go to a
+`tempfile.TemporaryDirectory()` and are uploaded from there.
 
 ---
 
