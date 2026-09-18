@@ -130,10 +130,13 @@ module-level functions (not lambdas) so transforms stay picklable and work with
 ## Generated files never land in the source tree
 
 Anything a run writes goes under the output root from `util/paths.py`
-(`$OUTPUT_DIR`, default `~/.cache/research-project`) — never a path relative to
-the working directory. `output_path("runs")` and friends build those locations;
-use them for new argparse defaults and config fallbacks instead of
-`./something`.
+(`DEFAULT_OUTPUT_ROOT`, default `~/.cache/research-project`) — never a path
+relative to the working directory. Use `output_path("runs")` for new argparse
+defaults and config fallbacks instead of `./something`.
+
+These are *defaults only*. A path that matters to a run belongs in the config
+(`trainer.default_root_dir`, `study.storage_dir`), not in an environment
+variable, so that the config stays a complete description of the run.
 
 This is easy to get wrong because Lightning resolves `ModelCheckpoint` against
 `Trainer.default_root_dir`, which falls back to `os.getcwd()` whenever the

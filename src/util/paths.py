@@ -1,44 +1,35 @@
-"""Default locations for the files a run produces, kept out of the source tree.
+"""Default location for the files a run produces, kept out of the source tree.
 
 Lightning resolves checkpoint paths against ``Trainer.default_root_dir``, which
 defaults to the *current working directory*. With a remote MLflow tracking URI
-``MLFlowLogger.save_dir`` is ``None``, so a run started from the repo root writes
-``{experiment_id}/{run_id}/checkpoints/`` straight into the project. Everything
-that needs a default location for generated files goes through here instead.
+``MLFlowLogger.save_dir`` is ``None``, so a run started from the repo root would
+write ``{experiment_id}/{run_id}/checkpoints/`` straight into the project. The
+CLI defaults ``default_root_dir`` to :func:`output_path` instead.
 
-Set ``$OUTPUT_DIR`` to move all of it somewhere else, e.g. a scratch disk::
+This is only the *default*. Override it per experiment in the config, which is
+where a path that matters to a run belongs::
 
-    export OUTPUT_DIR=/data/<user>/runs
+    trainer:
+      default_root_dir: /data/<user>/runs
 
-When you fork this template, rename :data:`ENV_VAR` and :data:`DEFAULT_ROOT` to
-something project-specific so several projects can coexist on one machine.
+Change :data:`DEFAULT_OUTPUT_ROOT` when you fork this template, so several
+projects do not share one directory.
 """
 
-import os
 from pathlib import Path
 
-ENV_VAR = "OUTPUT_DIR"
-DEFAULT_ROOT = Path.home() / ".cache" / "research-project"
-
-
-def output_root() -> Path:
-    """Root for generated files, from ``$OUTPUT_DIR`` or ``~/.cache/research-project``.
-
-    Returns:
-        The root directory. It is not created here; callers create the
-        subdirectory they actually use.
-    """
-    return Path(os.environ.get(ENV_VAR) or DEFAULT_ROOT).expanduser()
+DEFAULT_OUTPUT_ROOT = Path.home() / ".cache" / "research-project"
 
 
 def output_path(*parts: str) -> str:
-    """Build a path under :func:`output_root`.
+    """Build a default path under :data:`DEFAULT_OUTPUT_ROOT`.
 
     Args:
         *parts: Path segments appended to the root, e.g. ``"runs"``.
 
     Returns:
         The joined path as a string, which is what configs, argparse defaults
-        and Lightning all expect.
+        and Lightning all expect. The directory is not created here; callers
+        create the one they actually use.
     """
-    return str(output_root().joinpath(*parts))
+    return str(DEFAULT_OUTPUT_ROOT.joinpath(*parts))

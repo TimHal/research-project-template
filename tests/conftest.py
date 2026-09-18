@@ -11,6 +11,8 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader, TensorDataset
 
+from util import paths
+
 # Small, fixed problem size shared across tests. Tiny on purpose: fast on CPU,
 # no dataset downloads, no GPU.
 NUM_CLASSES = 3
@@ -26,9 +28,8 @@ def _isolated_env(tmp_path, monkeypatch):
     - Runs each test in a throwaway working directory, so any *relative* output
       (``lightning_logs/``, ``mlruns/``, checkpoints, ``./sweeps``, ``./data``)
       lands in ``tmp_path``, which pytest deletes afterwards.
-    - Points ``$OUTPUT_DIR`` at ``tmp_path`` so the shared output root is
-      isolated too, and a value exported in the developer's shell cannot leak
-      into the suite.
+    - Repoints the default output root at ``tmp_path``, so tests that fall
+      back to it never write into the developer's real home directory.
     - Redirects experiment trackers and caches to temp/offline, so tests never
       touch a real MLflow server, W&B account, or shared cache — even if a new
       test configures a logger.
@@ -38,7 +39,7 @@ def _isolated_env(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
     # Generated run outputs -> temp, never the developer's real output root.
-    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "outputs"))
+    monkeypatch.setattr(paths, "DEFAULT_OUTPUT_ROOT", tmp_path / "outputs")
 
     # MLflow -> local temp file store, never a real tracking server.
     monkeypatch.setenv("MLFLOW_TRACKING_URI", (tmp_path / "mlruns").as_uri())

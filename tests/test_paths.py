@@ -1,4 +1,4 @@
-"""Tests for the shared output root.
+"""Tests for the default output root.
 
 The point of these is a regression guard: a run must never write generated
 files into the project directory, which is what happens when Lightning falls
@@ -9,23 +9,25 @@ from pathlib import Path
 
 from cli import ResearchCLI
 from study import _build_storage
-from util.paths import DEFAULT_ROOT, output_path, output_root
+from util import paths
+from util.paths import output_path
 
 
-def test_env_var_sets_the_root(monkeypatch, tmp_path):
-    monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "elsewhere"))
-    assert output_root() == tmp_path / "elsewhere"
+def test_output_path_joins_under_the_root(tmp_path, monkeypatch):
+    monkeypatch.setattr(paths, "DEFAULT_OUTPUT_ROOT", tmp_path / "elsewhere")
     assert output_path("runs") == str(tmp_path / "elsewhere" / "runs")
 
 
-def test_default_root_is_outside_the_project(monkeypatch, repo_root):
-    """Without the env var the root is under ~/.cache, never the working dir."""
-    monkeypatch.delenv("OUTPUT_DIR", raising=False)
-    root = output_root()
+def test_cli_default_root_dir_is_absolute_and_outside_the_repo(repo_root):
+    """The regression this guards: a relative default lands in the source tree."""
+    config = {"trainer": {}}
+    ResearchCLI._set_default_root_dir(None, config)
 
-    assert root == DEFAULT_ROOT
-    assert Path.cwd() not in root.parents and root != Path.cwd()
-    assert repo_root not in root.parents
+    # Absolute is the point: a relative default is resolved against the cwd,
+    # which is the repo root whenever a run is started from there.
+    root = Path(config["trainer"]["default_root_dir"])
+    assert root.is_absolute()
+    assert root != repo_root and repo_root not in root.parents
 
 
 def test_cli_fills_in_an_absent_default_root_dir():
@@ -34,7 +36,8 @@ def test_cli_fills_in_an_absent_default_root_dir():
     assert config["trainer"]["default_root_dir"] == output_path("runs")
 
 
-def test_cli_keeps_an_explicit_default_root_dir():
+def test_config_default_root_dir_wins():
+    """The config is the override: the CLI must not overwrite an explicit value."""
     config = {"trainer": {"default_root_dir": "/somewhere/explicit"}}
     ResearchCLI._set_default_root_dir(None, config)
     assert config["trainer"]["default_root_dir"] == "/somewhere/explicit"

@@ -123,33 +123,42 @@ By default, stdout/stderr is captured and logged as an artifact (`output.log`). 
 ### Where Generated Files Go
 
 Nothing a run produces is written into the project directory. Checkpoints and
-Optuna journals go under a single output root:
-
-```bash
-export OUTPUT_DIR=/data/<user>/runs
-```
-
-When unset it defaults to `~/.cache/research-project`. The layout underneath is:
+Optuna journals default to `~/.cache/research-project`:
 
 | Path | Written by |
 | ---- | ---------- |
 | `<root>/runs/<experiment_id>/<run_id>/checkpoints/` | Lightning's `ModelCheckpoint` |
 | `<root>/sweeps/` | Optuna journals (a relative `storage_dir`) |
 
+Override it per experiment in the config — no environment variable is involved:
+
+```yaml
+trainer:
+  default_root_dir: /data/<user>/runs
+```
+
+or for a single run:
+
+```bash
+PYTHONPATH=src python src/cli.py fit --config conf/experiment/my_experiment.yaml \
+    --trainer.default_root_dir=/data/<user>/runs
+```
+
+Optuna journals follow `study.storage_dir` in the study config: a relative value
+resolves under the same root, an absolute one is used verbatim. To move the
+default for the whole project, change `DEFAULT_OUTPUT_ROOT` in
+`src/util/paths.py` — worth doing when you fork this template, so several
+projects do not share one directory.
+
 This matters because Lightning resolves checkpoints against
 `Trainer.default_root_dir`, which defaults to the *current working directory*.
 With a remote MLflow `tracking_uri` the logger reports no `save_dir`, so a run
 started from the repo root would otherwise drop
-`<repo>/<experiment_id>/<run_id>/checkpoints/` into your source tree. The CLI
-sets `default_root_dir` for you; an explicit value in a config or on the command
-line still wins.
+`<repo>/<experiment_id>/<run_id>/checkpoints/` into your source tree.
 
 Artifacts destined for the tracker (the captured log, the resolved config, any
 figures) are written to a temp directory and uploaded from there, so they are
 unaffected.
-
-When you fork this template, rename `ENV_VAR` and `DEFAULT_ROOT` in
-`src/util/paths.py` so several projects can coexist on one machine.
 
 ### Dataset Tracking
 

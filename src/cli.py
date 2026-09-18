@@ -170,7 +170,8 @@ class ResearchCLI(LightningCLI):
         ``default_root_dir`` otherwise falls back to the current working
         directory, and with a remote tracking URI the logger offers no
         ``save_dir``, so checkpoints land in ``<repo>/<experiment_id>/<run_id>/``.
-        An explicit value in the config or on the command line still wins.
+        This only fills in a default: ``trainer.default_root_dir`` in the
+        config, or ``--trainer.default_root_dir`` on the command line, wins.
         """
         if not config["trainer"].get("default_root_dir"):
             config["trainer"]["default_root_dir"] = output_path("runs")

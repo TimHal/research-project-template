@@ -17,8 +17,8 @@ study:
   direction: minimize          # minimize or maximize
   metric: "val/loss"           # metric from trainer.callback_metrics
   n_trials: 20
-  # Relative paths resolve under $OUTPUT_DIR (default ~/.cache/research-project),
-  # so journals never land in the project. Absolute paths are used verbatim.
+  # Relative paths resolve under the default output root (~/.cache/research-project)
+  # so journals never land in the project. Set an absolute path to choose your own.
   storage_dir: "./sweeps"      # Journal file at <root>/sweeps/<name>.journal; multi-process safe
   sampler: TPESampler          # TPESampler, RandomSampler, CmaEsSampler, NSGAIISampler
   pruner:
